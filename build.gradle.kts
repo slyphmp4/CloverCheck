@@ -5,6 +5,8 @@ plugins {
 group = "com.slyph"
 version = "1.0.0"
 
+val pluginVersion = version.toString()
+
 repositories {
     mavenCentral()
     maven {
@@ -34,7 +36,7 @@ tasks.withType<JavaCompile>().configureEach {
 tasks.processResources {
     filteringCharset = "UTF-8"
     filesMatching("plugin.yml") {
-        expand("version" to project.version)
+        expand("version" to pluginVersion)
     }
 }
 

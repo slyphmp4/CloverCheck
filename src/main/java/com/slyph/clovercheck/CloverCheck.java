@@ -8,7 +8,6 @@ import com.slyph.clovercheck.listener.CheckProtectionListener;
 import com.slyph.clovercheck.listener.LegacyCheckChatBridge;
 import com.slyph.clovercheck.service.ActionService;
 import com.slyph.clovercheck.service.AuditService;
-import com.slyph.clovercheck.service.CheckIsolationService;
 import com.slyph.clovercheck.service.CheckSessionService;
 import com.slyph.clovercheck.service.MessageService;
 import com.slyph.clovercheck.session.CheckSessionSnapshot;
@@ -33,7 +32,6 @@ public final class CloverCheck extends JavaPlugin {
     private CheckRepository repository;
     private CheckSessionService checkSessions;
     private CheckChatService checkChatService;
-    private CheckIsolationService checkIsolationService;
 
     @Override
     public void onEnable() {
@@ -70,9 +68,6 @@ public final class CloverCheck extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (checkIsolationService != null) {
-            checkIsolationService.shutdown();
-        }
         List<CheckSessionSnapshot> active = checkSessions == null ? List.of() : checkSessions.shutdown();
         if (repository != null) {
             repository.shutdown(active, Duration.ofSeconds(5));
@@ -95,10 +90,9 @@ public final class CloverCheck extends JavaPlugin {
         boolean fabricRuntime = isFabricRuntime();
         AuditService audit = new AuditService(repository, getLogger());
         ActionService actions = new ActionService(configService, audit, getLogger());
-        CheckUiService ui = new CheckUiService(configService, messageService, getLogger(), fabricRuntime);
+        CheckUiService ui = new CheckUiService(configService, messageService, getLogger());
         checkSessions = new CheckSessionService(this, configService, messageService, repository, audit, actions, ui, restored);
         checkChatService = new CheckChatService(this, messageService, checkSessions);
-        checkIsolationService = new CheckIsolationService(this, checkSessions, getLogger(), fabricRuntime);
         if (!checkChatService.reload()) {
             getLogger().severe("CloverCheck startup stopped because chat.yml is invalid.");
             getServer().getPluginManager().disablePlugin(this);
@@ -106,7 +100,7 @@ public final class CloverCheck extends JavaPlugin {
         }
 
         checkSessions.resumeOnlineSessions();
-        getServer().getPluginManager().registerEvents(new CheckProtectionListener(checkSessions, messageService, checkIsolationService), this);
+        getServer().getPluginManager().registerEvents(new CheckProtectionListener(checkSessions, messageService), this);
         if (fabricRuntime) {
             if (!new LegacyCheckChatBridge(this, checkChatService).register()) {
                 getLogger().severe("CloverCheck cannot safely isolate check chat on this Fabric/Cardboard runtime.");
@@ -127,7 +121,6 @@ public final class CloverCheck extends JavaPlugin {
         command.setExecutor(checkCommand);
         command.setTabCompleter(checkCommand);
         checkSessions.startTicker();
-        checkIsolationService.start();
         getLogger().info("CloverCheck initialized with " + restored.size() + " persisted active session(s).");
     }
 

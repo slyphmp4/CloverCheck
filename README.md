@@ -5,10 +5,13 @@ CloverCheck is a manual cheat-check workflow plugin for Minecraft/Paper 26.2. It
 ## Requirements
 
 - Minecraft/Paper 26.2
+- Cardboard 26.2.18 or newer when running on Cardboard
 - Java 25
 - Gradle 9.7.1 via the included wrapper
 
-The implementation deliberately avoids NMS, CraftBukkit internals and reflection. It uses public Bukkit/Paper and Adventure APIs so the runtime surface remains as friendly as practical to Bukkit/Paper-compatible implementations such as Cardboard. Cardboard compatibility is not claimed as tested until it is exercised on an actual Cardboard 26.2 server.
+Gameplay protection uses public Bukkit/Paper and Adventure APIs. Cardboard 26.2.18 includes the API-parity and cancellation fixes CloverCheck relies on, so CloverCheck does not carry Cardboard-specific gameplay, BossBar, potion-effect, teleport, or per-tick isolation fallbacks.
+
+The isolated check-chat path is the one intentional compatibility exception: on Fabric/Cardboard, CloverCheck uses a small reflective bridge for the legacy Bukkit chat event because that runtime does not currently expose the same `AsyncChatEvent` path used on Paper. Cardboard compatibility is not claimed as runtime-tested until the plugin is exercised on an actual Cardboard 26.2.18+ server.
 
 ## Commands
 

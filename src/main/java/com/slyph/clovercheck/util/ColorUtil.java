@@ -10,17 +10,12 @@ public final class ColorUtil {
     private static final Pattern ANGLE_HEX = Pattern.compile("(?i)<#([0-9a-f]{6})>");
     private static final Pattern HASH_HEX = Pattern.compile("(?i)&#([0-9a-f]{6})");
     private static final Pattern BARE_HEX = Pattern.compile("(?i)&(?!#)([0-9a-f]{6})");
-    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.builder()
-            .character('&')
-            .hexColors()
-            .useUnusualXRepeatedCharacterHexFormat()
-            .build();
 
     private ColorUtil() {
     }
 
     public static Component deserialize(String input) {
-        return LEGACY.deserialize(normalizeHex(input == null ? "" : input));
+        return SerializerHolder.LEGACY.deserialize(normalizeHex(input == null ? "" : input));
     }
 
     static String normalizeHex(String input) {
@@ -39,5 +34,16 @@ public final class ColorUtil {
         }
         matcher.appendTail(output);
         return output.toString();
+    }
+
+    private static final class SerializerHolder {
+        private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.builder()
+                .character('&')
+                .hexColors()
+                .useUnusualXRepeatedCharacterHexFormat()
+                .build();
+
+        private SerializerHolder() {
+        }
     }
 }

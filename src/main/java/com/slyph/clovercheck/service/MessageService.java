@@ -1,50 +1,44 @@
 package com.slyph.clovercheck.service;
 
-import com.slyph.clovercheck.CloverCheckPlugin;
-import com.slyph.clovercheck.util.ColorUtil;
+import com.slyph.clovercheck.util.LegacyMiniMessageCompat;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 public final class MessageService {
-    private final CloverCheckPlugin plugin;
-    private final File messagesFile;
-    private final File hoversFile;
-    private YamlConfiguration messages = new YamlConfiguration();
-    private YamlConfiguration hovers = new YamlConfiguration();
+    private final File file;
+    private final Logger logger;
+    private final MiniMessage miniMessage = MiniMessage.miniMessage();
+    private volatile YamlConfiguration messages = new YamlConfiguration();
 
-    public MessageService(CloverCheckPlugin plugin) {
-        this.plugin = plugin;
-        this.messagesFile = new File(plugin.getDataFolder(), "messages.yml");
-        this.hoversFile = new File(plugin.getDataFolder(), "hovers.yml");
+    public MessageService(JavaPlugin plugin) {
+        this.file = new File(plugin.getDataFolder(), "messages.yml");
+        this.logger = plugin.getLogger();
     }
 
     public boolean reload() {
         try {
-            YamlConfiguration loadedMessages = new YamlConfiguration();
-            loadedMessages.load(messagesFile);
-            if (!loadedMessages.isConfigurationSection("messages")) {
-                plugin.getLogger().severe("messages.yml does not contain the messages section.");
-                return false;
+            YamlConfiguration loaded = new YamlConfiguration();
+            loaded.load(file);
+            if (!loaded.isConfigurationSection("messages") || !loaded.isConfigurationSection("ui")) {
+                throw new InvalidConfigurationException("messages.yml must contain messages and ui sections");
             }
-
-            YamlConfiguration loadedHovers = new YamlConfiguration();
-            loadedHovers.load(hoversFile);
-            messages = loadedMessages;
-            hovers = loadedHovers;
+            messages = loaded;
             return true;
         } catch (IOException | InvalidConfigurationException exception) {
-            plugin.getLogger().severe("Failed to load message files: " + exception.getMessage());
+            logger.severe("Failed to load messages.yml: " + exception.getMessage());
             return false;
         }
     }
@@ -54,66 +48,42 @@ public final class MessageService {
     }
 
     public void send(CommandSender sender, String key, Map<String, String> placeholders) {
-        for (String line : lines("messages." + key)) {
-            sender.sendMessage(render(line, placeholders));
-        }
-    }
-
-    public void sendInteractive(CommandSender sender, String key, String hoverKey, Map<String, String> placeholders) {
-        Component hover = hoverComponent(hoverKey, placeholders);
-        String clickCommand = replace(hovers.getString(hoverKey + ".click-command", ""), placeholders);
-
-        for (String line : lines("messages." + key)) {
-            Component component = render(line, placeholders);
-            if (!hover.equals(Component.empty())) {
-                component = component.hoverEvent(HoverEvent.showText(hover));
+        String path = "messages." + key;
+        YamlConfiguration current = messages;
+        if (current.isList(path)) {
+            for (String line : current.getStringList(path)) {
+                sender.sendMessage(render(line, placeholders));
             }
-            if (!clickCommand.isBlank()) {
-                component = component.clickEvent(ClickEvent.runCommand(clickCommand));
-            }
-            sender.sendMessage(component);
+            return;
         }
+        String single = current.getString(path);
+        if (single == null) {
+            logger.warning("Missing message key: " + path);
+            return;
+        }
+        sender.sendMessage(render(single, placeholders));
     }
 
-    public Component render(String input, Map<String, String> placeholders) {
-        return ColorUtil.deserialize(replace(input, placeholders));
-    }
-
-    private Component hoverComponent(String key, Map<String, String> placeholders) {
-        List<String> lines = hovers.getStringList(key + ".lines");
-        if (lines.isEmpty()) {
+    public Component component(String path, Map<String, String> placeholders) {
+        String template = messages.getString(path);
+        if (template == null) {
+            logger.warning("Missing component key: " + path);
             return Component.empty();
         }
-
-        Component result = Component.empty();
-        for (int index = 0; index < lines.size(); index++) {
-            if (index > 0) {
-                result = result.append(Component.newline());
-            }
-            result = result.append(render(lines.get(index), placeholders));
-        }
-        return result;
+        return render(template, placeholders);
     }
 
-    private List<String> lines(String path) {
-        if (messages.isList(path)) {
-            return messages.getStringList(path);
-        }
-        String single = messages.getString(path);
-        if (single == null) {
-            plugin.getLogger().warning("Missing message key: " + path);
-            return List.of();
-        }
-        List<String> result = new ArrayList<>(1);
-        result.add(single);
-        return result;
+    public List<String> rawLines(String path) {
+        return List.copyOf(messages.getStringList(path));
     }
 
-    private String replace(String input, Map<String, String> placeholders) {
-        String result = input == null ? "" : input;
+    public Component render(String template, Map<String, String> placeholders) {
+        TagResolver.Builder resolver = TagResolver.builder();
         for (Map.Entry<String, String> entry : placeholders.entrySet()) {
-            result = result.replace('%' + entry.getKey() + '%', entry.getValue() == null ? "" : entry.getValue());
+            if (entry.getKey().matches("[a-z0-9_]+")) {
+                resolver.resolver(Placeholder.unparsed(entry.getKey(), entry.getValue() == null ? "" : entry.getValue()));
+            }
         }
-        return result;
+        return miniMessage.deserialize(LegacyMiniMessageCompat.convert(template), resolver.build());
     }
 }

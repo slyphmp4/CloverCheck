@@ -131,18 +131,11 @@ public final class SQLiteCheckRepository implements CheckRepository {
     }
 
     @Override
-    public CompletableFuture<Void> appendAudit(
-            String sessionId,
-            AuditEventType type,
-            UUID actorId,
-            String actorName,
-            Instant timestamp,
-            String details
-    ) {
+    public CompletableFuture<Void> appendAudit(String sessionId, AuditEventType type, UUID actorId, String actorName, Instant timestamp, String details) {
         return runAsync(() -> {
             requireConnection();
-            String sql = "INSERT INTO audit_events (session_id, event_type, actor_uuid, actor_name, event_time, details) VALUES (?, ?, ?, ?, ?, ?)";
-            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "INSERT INTO audit_events (session_id, event_type, actor_uuid, actor_name, event_time, details) VALUES (?, ?, ?, ?, ?, ?)")) {
                 statement.setString(1, sessionId);
                 statement.setString(2, type.name());
                 setNullableString(statement, 3, actorId == null ? null : actorId.toString());
@@ -233,8 +226,8 @@ public final class SQLiteCheckRepository implements CheckRepository {
 
     private List<CheckSessionSnapshot> loadActive() throws SQLException {
         requireConnection();
-        String sql = "SELECT * FROM checks WHERE state IN ('STARTING', 'ACTIVE', 'DISCONNECTED') ORDER BY started_at";
-        try (PreparedStatement statement = connection.prepareStatement(sql);
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT * FROM checks WHERE state IN ('STARTING', 'ACTIVE', 'DISCONNECTED') ORDER BY started_at");
              ResultSet resultSet = statement.executeQuery()) {
             return readAll(resultSet);
         }
@@ -314,6 +307,7 @@ public final class SQLiteCheckRepository implements CheckRepository {
                 CheckState.valueOf(resultSet.getString("state").toUpperCase(Locale.ROOT)),
                 resultName == null ? null : CheckResult.valueOf(resultName.toUpperCase(Locale.ROOT)),
                 resultSet.getString("comment"),
+                origin,
                 resultSet.getInt("disconnect_flag") != 0,
                 nullableInstant(resultSet, "disconnected_at"),
                 nullableInstant(resultSet, "rejoined_at"),

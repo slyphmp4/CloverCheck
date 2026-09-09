@@ -17,9 +17,9 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityToggleGlideEvent;
-import org.bukkit.event.entity.EntityToggleSwimEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.PlayerLeashEntityEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -34,6 +34,7 @@ import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerEditBookEvent;
+import org.bukkit.event.player.PlayerExpChangeEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerHarvestBlockEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
@@ -42,10 +43,8 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerLeashEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPickupArrowEvent;
-import org.bukkit.event.player.PlayerPickupExperienceEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerShearEntityEvent;
@@ -97,11 +96,6 @@ public final class CheckProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onGlide(EntityToggleGlideEvent event) {
-        if (event.getEntity() instanceof Player player && freeze(player).movement()) event.setCancelled(true);
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-    public void onSwim(EntityToggleSwimEvent event) {
         if (event.getEntity() instanceof Player player && freeze(player).movement()) event.setCancelled(true);
     }
 
@@ -253,9 +247,9 @@ public final class CheckProtectionListener implements Listener {
         if (freeze(event.getPlayer()).itemPickup()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-    public void onExperiencePickup(PlayerPickupExperienceEvent event) {
-        if (freeze(event.getPlayer()).itemPickup()) event.setCancelled(true);
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onExperience(PlayerExpChangeEvent event) {
+        if (freeze(event.getPlayer()).itemPickup()) event.setAmount(0);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)

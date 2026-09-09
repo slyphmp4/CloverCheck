@@ -215,7 +215,7 @@ public final class CheckUiService {
 
     private void restoreBlindness(Player player) {
         BlindnessSnapshot snapshot = blindnessBeforeCheck.remove(player.getUniqueId());
-        if (snapshot == null || !blindnessSupported) {
+        if (snapshot == null) {
             return;
         }
         try {
@@ -268,7 +268,6 @@ public final class CheckUiService {
 
     private void disableBlindness(RuntimeException exception) {
         blindnessSupported = false;
-        blindnessBeforeCheck.clear();
         if (blindnessFailureLogged) {
             return;
         }

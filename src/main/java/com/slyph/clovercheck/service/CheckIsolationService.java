@@ -10,7 +10,6 @@ import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.InventoryType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -130,7 +129,6 @@ public final class CheckIsolationService {
             safe("sprint", () -> player.setSprinting(false));
             safe("sneak", () -> player.setSneaking(false));
             safe("jump", () -> player.setJumping(false));
-            safe("swim", () -> player.setSwimming(false));
             safe("glide", () -> player.setGliding(false));
             setAttribute(player, Attribute.MOVEMENT_SPEED, 0.0);
             setAttribute(player, Attribute.FLYING_SPEED, 0.0);
@@ -170,11 +168,7 @@ public final class CheckIsolationService {
             safe("held-slot", () -> player.getInventory().setHeldItemSlot(state.heldSlot()));
         }
         if (freeze.inventory()) {
-            safe("inventory-close", () -> {
-                if (player.getOpenInventory().getTopInventory().getType() != InventoryType.CRAFTING) {
-                    player.closeInventory();
-                }
-            });
+            safe("inventory-close", player::closeInventory);
         }
         if (freeze.vehicle() && player.isInsideVehicle()) {
             safe("vehicle", player::leaveVehicle);

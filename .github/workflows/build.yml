@@ -5,7 +5,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -22,25 +22,6 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: '9.7.1'
-
-      - name: Bootstrap Gradle Wrapper
-        if: ${{ hashFiles('gradle/wrapper/gradle-wrapper.jar') == '' }}
-        run: gradle wrapper --gradle-version 9.7.1
-
-      - name: Persist Gradle Wrapper
-        if: ${{ github.event_name == 'push' && hashFiles('gradle/wrapper/gradle-wrapper.jar') != '' }}
-        shell: bash
-        run: |
-          if git ls-files --error-unmatch gradle/wrapper/gradle-wrapper.jar >/dev/null 2>&1; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add gradle/wrapper/gradle-wrapper.jar gradlew gradlew.bat gradle/wrapper/gradle-wrapper.properties
-          git commit -m "chore: add Gradle wrapper binary"
-          git push
 
       - name: Build and test
         run: ./gradlew clean build

@@ -5,6 +5,7 @@ import com.slyph.clovercheck.command.CheckCommand;
 import com.slyph.clovercheck.config.ConfigService;
 import com.slyph.clovercheck.listener.CheckChatListener;
 import com.slyph.clovercheck.listener.CheckProtectionListener;
+import com.slyph.clovercheck.listener.LegacyCheckChatBridge;
 import com.slyph.clovercheck.service.ActionService;
 import com.slyph.clovercheck.service.AuditService;
 import com.slyph.clovercheck.service.CheckSessionService;
@@ -99,7 +100,15 @@ public final class CloverCheck extends JavaPlugin {
 
         checkSessions.resumeOnlineSessions();
         getServer().getPluginManager().registerEvents(new CheckProtectionListener(checkSessions, messageService), this);
-        getServer().getPluginManager().registerEvents(new CheckChatListener(checkChatService), this);
+        if (isFabricRuntime()) {
+            if (!new LegacyCheckChatBridge(this, checkChatService).register()) {
+                getLogger().severe("CloverCheck cannot safely isolate check chat on this Fabric/Cardboard runtime.");
+                getServer().getPluginManager().disablePlugin(this);
+                return;
+            }
+        } else {
+            getServer().getPluginManager().registerEvents(new CheckChatListener(checkChatService), this);
+        }
 
         PluginCommand command = getCommand("check");
         if (command == null) {
@@ -112,5 +121,14 @@ public final class CloverCheck extends JavaPlugin {
         command.setTabCompleter(checkCommand);
         checkSessions.startTicker();
         getLogger().info("CloverCheck initialized with " + restored.size() + " persisted active session(s).");
+    }
+
+    private boolean isFabricRuntime() {
+        try {
+            Class.forName("net.fabricmc.loader.api.FabricLoader", false, getClass().getClassLoader());
+            return true;
+        } catch (ClassNotFoundException ignored) {
+            return false;
+        }
     }
 }

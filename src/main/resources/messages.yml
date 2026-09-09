@@ -1,186 +1,308 @@
-version: 1
+version: 2
 
 messages:
   help:
-    - '&7'
-    - '&FFD166CloverCheck &8• &FFFFFFКоманды'
-    - '&7'
-    - '&787878▪ &FFFFFF/check start <игрок> [время] &8— &BFBFBFначать проверку'
-    - '&787878▪ &FFFFFF/check finish <игрок> <clean|cheats|refusal> &8— &BFBFBFзавершить проверку'
-    - '&787878▪ &FFFFFF/check cancel <игрок> &8— &BFBFBFотменить проверку'
-    - '&787878▪ &FFFFFF/check status [игрок] &8— &BFBFBFпосмотреть статус'
-    - '&787878▪ &FFFFFF/check list &8— &BFBFBFактивные проверки'
-    - '&787878▪ &FFFFFF/check reload &8— &BFBFBFперезагрузить плагин'
-    - '&7'
-  player-help:
-    - '&7'
-    - '&E9C66E⓪  &C2A65E|  &E9C66EВо время проверки используйте &FFF0B8/check admit &E9C66Eдля добровольного признания'
-    - '&7'
+    - "&7"
+    - "<#FFD166>CloverCheck <dark_gray>| <white>Команды"
+    - "&7"
+    - "<gray>/check <игрок> [причина] <dark_gray>- <white>начать проверку"
+    - "<gray>/check clean <игрок> <dark_gray>- <white>завершить как чисто"
+    - "<gray>/check cheats <игрок> [комментарий] <dark_gray>- <white>зафиксировать читы"
+    - "<gray>/check refuse <игрок> [комментарий] <dark_gray>- <white>зафиксировать отказ"
+    - "<gray>/check cancel <игрок> [причина] <dark_gray>- <white>отменить проверку"
+    - "<gray>/check status <игрок> <dark_gray>- <white>статус и действия"
+    - "<gray>/check list <dark_gray>- <white>активные проверки"
+    - "<gray>/check history <игрок> <dark_gray>- <white>история"
+    - "<gray>/check info <id> <dark_gray>- <white>детали проверки"
+    - "<gray>/check reload <dark_gray>- <white>перезагрузить настройки"
+    - "&7"
   no-permission:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AУ вас нет права на эту команду'
-    - '&7'
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>У вас нет права на это действие"
+    - "&7"
   player-only:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AЭта команда доступна только игрокам'
-    - '&7'
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Эта команда доступна только игрокам"
+    - "&7"
   player-not-found:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AИгрок &FFB8B8%player% &FF5A5Aне найден онлайн'
-    - '&7'
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Игрок <#FFB8B8><player> <#FF5A5A>не найден онлайн"
+    - "&7"
+  player-offline:
+    - "&7"
+    - "<#E9C66E>⏳  <#C2A65E>|  <#E9C66E>Игрок <white><player> <#E9C66E>сейчас не в сети"
+    - "&7"
   cannot-check-yourself:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AНельзя вызвать на проверку самого себя'
-    - '&7'
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Нельзя вызвать на проверку самого себя"
+    - "&7"
+  player-dead:
+    - "&7"
+    - "<#E9C66E>⚠  <#C2A65E>|  <#E9C66E>Дождитесь возрождения игрока <white><player>"
+    - "&7"
   bypassed:
-    - '&7'
-    - '&E9C66E⓪  &C2A65E|  &E9C66EИгрок &FFF0B8&l%player% &E9C66Eзащищён от проверки'
-    - '&7'
+    - "&7"
+    - "<#E9C66E>⚠  <#C2A65E>|  <#E9C66E>Игрок <white><player> <#E9C66E>защищён permission clovercheck.bypass"
+    - "&7"
   already-checking:
-    - '&7'
-    - '&E9C66E⏳  &C2A65E|  &E9C66EИгрок &FFF0B8&l%player% &E9C66Eуже находится на проверке'
-    - '&7'
+    - "&7"
+    - "<#E9C66E>⏳  <#C2A65E>|  <#E9C66E>Игрок <white><player> <#E9C66E>уже находится на проверке"
+    - "&7"
+  moderator-busy:
+    - "&7"
+    - "<#E9C66E>⏳  <#C2A65E>|  <#E9C66E>Вы уже ведёте другую активную проверку"
+    - "&7"
   not-checking:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AИгрок &FFB8B8%player% &FF5A5Aсейчас не находится на проверке'
-    - '&7'
-  invalid-duration:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AНеверное время проверки'
-    - '&FF5A5A       Пример: &FFB8B85m&8, &FFB8B810m&8, &FFB8B81h30m'
-    - '&7'
-  duration-too-long:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AВремя проверки не может быть больше &FFB8B8&l%maximum%'
-    - '&7'
-  invalid-result:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AРезультат должен быть &FFB8B8clean&8, &FFB8B8cheats &FF5A5Aили &FFB8B8refusal'
-    - '&7'
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Активная проверка игрока <#FFB8B8><player> <#FF5A5A>не найдена"
+    - "&7"
+  not-under-check:
+    - "&7"
+    - "<#E9C66E>⚠  <#C2A65E>|  <#E9C66E>Вы сейчас не находитесь на проверке"
+    - "&7"
+  reason-too-long:
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Причина проверки слишком длинная"
+    - "&7"
+  comment-too-long:
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Комментарий модератора слишком длинный"
+    - "&7"
+  internal-error:
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Внутренняя ошибка CloverCheck. Проверьте консоль сервера"
+    - "&7"
+  storage-error:
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Не удалось получить данные из истории проверок"
+    - "&7"
   start-success:
-    - '&7'
-    - '&86E96E✔  &6DBF58|  &86E96EИгрок &FFFFFF&l%player% &86E96Eвызван на проверку'
-    - '&86E96E       ID: &FFFFFF%id% &8• &86E96EВремя: &FFFFFF%duration%'
-    - '&7'
+    - "&7"
+    - "<#86E96E>✔  <#6DBF58>|  <#86E96E>Игрок <white><player> <#86E96E>вызван на проверку"
+    - "<#86E96E>       ID: <white><short_id> <dark_gray>| <#86E96E>Время: <white><duration>"
+    - "&7"
   target-start:
-    - '&7'
-    - '&8B761F ■ &m                   &m&C2A65E [&FFF0B8&lПРОВЕРКА НА ЧИТЫ&C2A65E] &8B761F&m                   &m&8B761F □'
-    - '&7'
-    - '&FFF0B8 ⚠ Вас вызвал на проверку модератор &FFFFFF&l%staff%'
-    - '&E9C66E ⏳ На прохождение проверки дано &FFF0B8&l%duration%'
-    - '&6EE9E5 ✉ Для связи: &FFFFFF%discord%'
-    - '&7'
-    - '&CFCFCF ▪ Не выходите с сервера и не пытайтесь обойти ограничения'
-    - '&CFCFCF ▪ Добровольное признание: &FFFFFF/check admit'
-    - '&7'
-    - '&8B761F □ &m                   &m&C2A65E [&FFF0B8&lПРОВЕРКА НА ЧИТЫ&C2A65E] &8B761F&m                   &m&8B761F ■'
-    - '&7'
+    - "&7"
+    - "<#C2A65E>□  <#FFF0B8>ПРОВЕРКА НА ЧИТЫ  <#C2A65E>□"
+    - "&7"
+    - "<#FFF0B8>⚠ Вас вызвал на проверку модератор <white><moderator>"
+    - "<#E9C66E>⏳ Осталось времени: <#FFF0B8><time>"
+    - "<#6EE9E5>✉ Связь с модерацией: <white><contact>"
+    - "<gray>Причина: <white><reason>"
+    - "&7"
+    - "<gray>Не выходите с сервера и не пытайтесь обходить ограничения"
+    - "<gray>Если хотите признаться: <white>/check confess"
+    - "&7"
   notify-start:
-    - '&7'
-    - '&6EE9E5🔔  &58B1BF|  &6EE9E5Игрок &FFFFFF&l%player% &6EE9E5вызван на проверку модератором &FFFFFF%staff%'
-    - '&6EE9E5       ID: &FFFFFF%id% &8• &6EE9E5Время: &FFFFFF%duration%'
-    - '&7'
+    - "&7"
+    - "<#6EE9E5>🔔  <#58B1BF>|  <#6EE9E5><player> <white>вызван на проверку модератором <#6EE9E5><moderator>"
+    - "<#6EE9E5>       ID: <white><short_id> <dark_gray>| <#6EE9E5>Причина: <white><reason>"
+    - "&7"
   reminder:
-    - '&7'
-    - '&E9C66E⏳  &C2A65E|  &E9C66EПроверка продолжается &8• &E9C66Eосталось &FFF0B8&l%time%'
-    - '&E9C66E       Связь с модерацией: &FFFFFF%discord%'
-    - '&7'
+    - "&7"
+    - "<#E9C66E>⏳  <#C2A65E>|  <#E9C66E>Проверка продолжается <dark_gray>| <#E9C66E>осталось <#FFF0B8><time>"
+    - "&7"
   command-blocked:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AЭта команда недоступна во время проверки'
-    - '&7'
-  admitted:
-    - '&7'
-    - '&E9C66E⚠  &C2A65E|  &E9C66EВы признались в использовании читов'
-    - '&7'
-  notify-admitted:
-    - '&7'
-    - '&C72B2B⚑  &FF9089|  &FF5A5AИгрок &FFB8B8&l%player% &FF5A5Aпризнался в использовании читов'
-    - '&7'
-  quit-keep:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AИгрок &FFB8B8&l%player% &FF5A5Aвышел во время проверки'
-    - '&FF5A5A       Проверка сохранена и продолжится после входа'
-    - '&7'
-  quit-fail:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AИгрок &FFB8B8&l%player% &FF5A5Aвышел во время проверки и автоматически её провалил'
-    - '&7'
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Эта команда недоступна во время проверки"
+    - "&7"
+  confess-disabled:
+    - "&7"
+    - "<#E9C66E>⚠  <#C2A65E>|  <#E9C66E>Добровольное признание отключено настройками сервера"
+    - "&7"
+  confess-confirm:
+    - "&7"
+    - "<#C72B2B>⚠  <#FF9089>|  <#FF5A5A>Вы собираетесь признаться в использовании запрещённого ПО"
+    - "<#FF5A5A>       Для подтверждения в течение <#FFB8B8><seconds> сек. <#FF5A5A>введите <#FFB8B8>/check confess confirm"
+    - "&7"
+  confess-expired:
+    - "&7"
+    - "<#E9C66E>⏳  <#C2A65E>|  <#E9C66E>Подтверждение истекло. Введите <white>/check confess <#E9C66E>ещё раз"
+    - "&7"
+  quit-moderator:
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Игрок <#FFB8B8><player> <#FF5A5A>вышел во время проверки"
+    - "&7"
+  quit-staff:
+    - "&7"
+    - "<#C72B2B>⚑  <#FF9089>|  <#FF5A5A><player> вышел во время проверки <dark_gray>| <#FF5A5A>ID <#FFB8B8><short_id>"
+    - "&7"
   resumed-target:
-    - '&7'
-    - '&E9C66E⏳  &C2A65E|  &E9C66EВаша проверка продолжается &8• &E9C66Eосталось &FFF0B8&l%time%'
-    - '&7'
+    - "&7"
+    - "<#E9C66E>⏳  <#C2A65E>|  <#E9C66E>Ваша проверка продолжается <dark_gray>| <#E9C66E>осталось <#FFF0B8><time>"
+    - "&7"
+  resumed-moderator:
+    - "&7"
+    - "<#6EE9E5>🔔  <#58B1BF>|  <#6EE9E5>Игрок <white><player> <#6EE9E5>вернулся на сервер"
+    - "&7"
   resumed-staff:
-    - '&7'
-    - '&6EE9E5🔔  &58B1BF|  &6EE9E5Игрок &FFFFFF&l%player% &6EE9E5вернулся на сервер и снова находится на проверке'
-    - '&7'
-  timeout-target:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AВремя на прохождение проверки закончилось'
-    - '&7'
-  timeout-staff:
-    - '&7'
-    - '&C72B2B⏳  &FF9089|  &FF5A5AИгрок &FFB8B8&l%player% &FF5A5Aне прошёл проверку вовремя'
-    - '&7'
-  finish-clean-staff:
-    - '&7'
-    - '&86E96E✔  &6DBF58|  &86E96EПроверка игрока &FFFFFF&l%player% &86E96Eзавершена &8• &86E96Eрезультат: &FFFFFFчисто'
-    - '&7'
-  finish-clean-target:
-    - '&7'
-    - '&86E96E✔  &6DBF58|  &86E96EПроверка завершена &8• &86E96Eнарушений не обнаружено'
-    - '&7'
-  finish-cheats-staff:
-    - '&7'
-    - '&C72B2B⚑  &FF9089|  &FF5A5AПроверка игрока &FFB8B8&l%player% &FF5A5Aзавершена &8• &FF5A5Aрезультат: &FFB8B8читы'
-    - '&7'
-  finish-cheats-target:
-    - '&7'
-    - '&C72B2B⚑  &FF9089|  &FF5A5AПроверка завершена &8• &FF5A5Aзафиксировано использование читов'
-    - '&7'
-  finish-refusal-staff:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AПроверка игрока &FFB8B8&l%player% &FF5A5Aзавершена &8• &FF5A5Aрезультат: &FFB8B8отказ'
-    - '&7'
-  finish-refusal-target:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AПроверка завершена как отказ от прохождения'
-    - '&7'
-  cancel-staff:
-    - '&7'
-    - '&E9C66E⏪  &C2A65E|  &E9C66EПроверка игрока &FFF0B8&l%player% &E9C66Eотменена'
-    - '&7'
-  cancel-target:
-    - '&7'
-    - '&E9C66E⏪  &C2A65E|  &E9C66EПроверка была отменена модератором'
-    - '&7'
+    - "&7"
+    - "<#6EE9E5>🔔  <#58B1BF>|  <#6EE9E5><player> снова находится на активной проверке"
+    - "&7"
+  moderator-left-target:
+    - "&7"
+    - "<#E9C66E>⚠  <#C2A65E>|  <#E9C66E>Модератор <white><moderator> <#E9C66E>вышел. Ваша проверка остаётся активной"
+    - "&7"
+  moderator-left-staff:
+    - "&7"
+    - "<#E9C66E>⚠  <#C2A65E>|  <#E9C66E>Модератор <white><moderator> <#E9C66E>вышел во время проверки <white><player>"
+    - "&7"
   status:
-    - '&7'
-    - '&FFD166CloverCheck &8• &FFFFFFПроверка игрока &FFD166%player%'
-    - '&7'
-    - '&787878▪ &FFFFFFID: &BFBFBF%id%'
-    - '&787878▪ &FFFFFFМодератор: &BFBFBF%staff%'
-    - '&787878▪ &FFFFFFНачало: &BFBFBF%started%'
-    - '&787878▪ &FFFFFFОсталось: &E9C66E%time%'
-    - '&787878▪ &FFFFFFСтатус: &BFBFBF%online%'
-    - '&787878▪ &FFFFFFМир: &BFBFBF%world%'
-    - '&7'
+    - "&7"
+    - "<#FFD166>CloverCheck <dark_gray>| <white>Проверка <#FFD166><player>"
+    - "&7"
+    - "<gray>ID: <white><id>"
+    - "<gray>Модератор: <white><moderator>"
+    - "<gray>Причина: <white><reason>"
+    - "<gray>Начало: <white><started>"
+    - "<gray>Осталось: <#E9C66E><time>"
+    - "<gray>Состояние: <white><state>"
+    - "<gray>Игрок: <white><online>"
+    - "&7"
   list-header:
-    - '&7'
-    - '&FFD166CloverCheck &8• &FFFFFFАктивные проверки'
-    - '&7'
+    - "&7"
+    - "<#FFD166>CloverCheck <dark_gray>| <white>Активные проверки"
+    - "&7"
   list-entry:
-    - '&787878▪ &FFFFFF%player% &8• &BFBFBF%staff% &8• &E9C66E%time% &8• &BFBFBF#%id%'
+    - "<gray>- <white><player> <dark_gray>| <gray><moderator> <dark_gray>| <#E9C66E><time> <dark_gray>| <gray><short_id>"
   list-empty:
-    - '&7'
-    - '&E9C66E⓪  &C2A65E|  &E9C66EАктивных проверок сейчас нет'
-    - '&7'
+    - "&7"
+    - "<#E9C66E>⏳  <#C2A65E>|  <#E9C66E>Активных проверок сейчас нет"
+    - "&7"
+  history-loading:
+    - "&7"
+    - "<#6EE9E5>⏳  <#58B1BF>|  <#6EE9E5>Загружаю историю игрока <white><player>"
+    - "&7"
+  history-header:
+    - "&7"
+    - "<#FFD166>CloverCheck <dark_gray>| <white>История <#FFD166><player>"
+    - "&7"
+  history-entry:
+    - "<gray>- <white><started> <dark_gray>| <gray><result> <dark_gray>| <gray><moderator> <dark_gray>| <white><short_id>"
+  history-empty:
+    - "&7"
+    - "<#E9C66E>⏳  <#C2A65E>|  <#E9C66E>История игрока <white><player> <#E9C66E>пуста"
+    - "&7"
+  info-not-found:
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Проверка с ID <#FFB8B8><id> <#FF5A5A>не найдена"
+    - "&7"
+  info:
+    - "&7"
+    - "<#FFD166>CloverCheck <dark_gray>| <white>Проверка <#FFD166><short_id>"
+    - "&7"
+    - "<gray>Игрок: <white><player>"
+    - "<gray>Модератор: <white><moderator>"
+    - "<gray>Начало: <white><started>"
+    - "<gray>Завершение: <white><ended>"
+    - "<gray>Состояние: <white><state>"
+    - "<gray>Результат: <white><result>"
+    - "<gray>Причина: <white><reason>"
+    - "<gray>Комментарий: <white><comment>"
+    - "&7"
+  teleport-disabled:
+    - "&7"
+    - "<#E9C66E>⚠  <#C2A65E>|  <#E9C66E>Телепортация модератора отключена в config.yml"
+    - "&7"
+  teleport-success:
+    - "&7"
+    - "<#86E96E>✔  <#6DBF58>|  <#86E96E>Вы телепортированы к игроку <white><player>"
+    - "&7"
   reload-success:
-    - '&7'
-    - '&86E96E✔  &6DBF58|  &86E96E&lCloverCheck &86E96Eуспешно перезагружен!'
-    - '&7'
+    - "&7"
+    - "<#86E96E>✔  <#6DBF58>|  <#86E96E>CloverCheck успешно перезагружен"
+    - "&7"
+  reload-restart-required:
+    - "&7"
+    - "<#E9C66E>⚠  <#C2A65E>|  <#E9C66E>Настройки перезагружены, но изменение database требует рестарта сервера"
+    - "&7"
   reload-failed:
-    - '&7'
-    - '&C72B2B❌  &FF9089|  &FF5A5AНе удалось перезагрузить сообщения CloverCheck'
-    - '&FF5A5A       Предыдущая корректная конфигурация сообщений сохранена'
-    - '&7'
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Перезагрузка отклонена из-за ошибки конфигурации. Старые настройки сохранены"
+    - "&7"
+  usage-start:
+    - "<#E9C66E>⚠  <#C2A65E>|  <white>/check <игрок> [причина]"
+  usage-finish:
+    - "<#E9C66E>⚠  <#C2A65E>|  <white>/check clean|cheats|refuse <игрок> [комментарий]"
+  usage-cancel:
+    - "<#E9C66E>⚠  <#C2A65E>|  <white>/check cancel <игрок> [причина]"
+  usage-status:
+    - "<#E9C66E>⚠  <#C2A65E>|  <white>/check status <игрок>"
+  usage-history:
+    - "<#E9C66E>⚠  <#C2A65E>|  <white>/check history <игрок>"
+  usage-info:
+    - "<#E9C66E>⚠  <#C2A65E>|  <white>/check info <id>"
+  usage-teleport:
+    - "<#E9C66E>⚠  <#C2A65E>|  <white>/check tp <игрок>"
+  complete-target:
+    clean:
+      - "&7"
+      - "<#86E96E>✔  <#6DBF58>|  <#86E96E>Проверка завершена. Нарушений не обнаружено"
+      - "&7"
+    cheats-found:
+      - "&7"
+      - "<#C72B2B>⚑  <#FF9089>|  <#FF5A5A>Проверка завершена. Зафиксировано использование запрещённого ПО"
+      - "&7"
+    confessed:
+      - "&7"
+      - "<#C72B2B>⚑  <#FF9089>|  <#FF5A5A>Ваше признание подтверждено"
+      - "&7"
+    refused:
+      - "&7"
+      - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Проверка завершена как отказ от прохождения"
+      - "&7"
+    left:
+      - "&7"
+      - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Проверка завершена из-за выхода с сервера"
+      - "&7"
+    timeout:
+      - "&7"
+      - "<#C72B2B>⏳  <#FF9089>|  <#FF5A5A>Время на прохождение проверки закончилось"
+      - "&7"
+    cancelled:
+      - "&7"
+      - "<#E9C66E>←  <#C2A65E>|  <#E9C66E>Проверка отменена модератором"
+      - "&7"
+  complete-actor:
+    clean: "<#86E96E>✔  <#6DBF58>|  <#86E96E><player> <white>- CLEAN"
+    cheats-found: "<#C72B2B>⚑  <#FF9089>|  <#FF5A5A><player> <white>- CHEATS_FOUND"
+    confessed: "<#C72B2B>⚑  <#FF9089>|  <#FF5A5A><player> <white>- CONFESSED"
+    refused: "<#C72B2B>❌  <#FF9089>|  <#FF5A5A><player> <white>- REFUSED"
+    left: "<#C72B2B>❌  <#FF9089>|  <#FF5A5A><player> <white>- LEFT"
+    timeout: "<#C72B2B>⏳  <#FF9089>|  <#FF5A5A><player> <white>- TIMEOUT"
+    cancelled: "<#E9C66E>←  <#C2A65E>|  <#E9C66E><player> <white>- CANCELLED"
+  complete-moderator:
+    clean: "<#86E96E>✔  <#6DBF58>|  <#86E96E>Проверка <white><player> <#86E96E>завершена как CLEAN"
+    cheats-found: "<#C72B2B>⚑  <#FF9089>|  <#FF5A5A>Проверка <white><player> <#FF5A5A>завершена как CHEATS_FOUND"
+    confessed: "<#C72B2B>⚑  <#FF9089>|  <#FF5A5A><player> подтвердил признание"
+    refused: "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Проверка <white><player> <#FF5A5A>завершена как REFUSED"
+    left: "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Проверка <white><player> <#FF5A5A>завершена как LEFT"
+    timeout: "<#C72B2B>⏳  <#FF9089>|  <#FF5A5A>Проверка <white><player> <#FF5A5A>завершена как TIMEOUT"
+    cancelled: "<#E9C66E>←  <#C2A65E>|  <#E9C66E>Проверка <white><player> <#E9C66E>отменена"
+  complete-staff:
+    clean: "<#86E96E>✔  <#6DBF58>|  <#86E96E><player> <dark_gray>| <white>CLEAN <dark_gray>| <gray><moderator>"
+    cheats-found: "<#C72B2B>⚑  <#FF9089>|  <#FF5A5A><player> <dark_gray>| <white>CHEATS_FOUND <dark_gray>| <gray><moderator>"
+    confessed: "<#C72B2B>⚑  <#FF9089>|  <#FF5A5A><player> <dark_gray>| <white>CONFESSED <dark_gray>| <gray><moderator>"
+    refused: "<#C72B2B>❌  <#FF9089>|  <#FF5A5A><player> <dark_gray>| <white>REFUSED <dark_gray>| <gray><moderator>"
+    left: "<#C72B2B>❌  <#FF9089>|  <#FF5A5A><player> <dark_gray>| <white>LEFT <dark_gray>| <gray><moderator>"
+    timeout: "<#C72B2B>⏳  <#FF9089>|  <#FF5A5A><player> <dark_gray>| <white>TIMEOUT <dark_gray>| <gray><moderator>"
+    cancelled: "<#E9C66E>←  <#C2A65E>|  <#E9C66E><player> <dark_gray>| <white>CANCELLED <dark_gray>| <gray><moderator>"
+
+ui:
+  title:
+    title: "<#FF5A5A>⚠ ПРОВЕРКА НА ЧИТЫ"
+    subtitle: "<gray>Модератор: <white><moderator> <dark_gray>| <#E9C66E><time>"
+  bossbar:
+    text: "<#FFF0B8>⏳ Проверка <dark_gray>| <white><time>"
+  actionbar:
+    text: "<#E9C66E>⏳ <time> <dark_gray>| <gray>Связь: <white><contact>"
+  controls:
+    separator: " <dark_gray>| "
+    clean: "<#86E96E>[✔ Чисто]"
+    clean-hover: "<gray>Подставить команду завершения как CLEAN"
+    cheats: "<#FF5A5A>[⚑ Читы]"
+    cheats-hover: "<gray>Подставить команду CHEATS_FOUND. Добавьте комментарий и отправьте вручную"
+    cancel: "<#E9C66E>[← Отмена]"
+    cancel-hover: "<gray>Подставить команду отмены. Добавьте причину и отправьте вручную"
+    teleport: "<#6EE9E5>[→ К игроку]"
+    teleport-hover: "<gray>Телепортироваться к проверяемому игроку"

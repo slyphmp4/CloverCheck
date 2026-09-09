@@ -1,43 +1,58 @@
 name: CloverCheck
 version: '${version}'
-main: com.slyph.clovercheck.CloverCheckPlugin
+main: com.slyph.clovercheck.CloverCheck
 api-version: '26.2'
 author: slyph
-description: Cheat-check workflow and player freeze system for Paper and Cardboard.
+description: Manual player cheat-check workflow for Paper 26.2.
 website: https://github.com/slyphmp4/CloverCheck
+
 commands:
   check:
-    description: Manage player cheat checks.
+    description: Manage manual player cheat checks.
     usage: /check
     aliases: [clovercheck]
+
 permissions:
-  clovercheck.staff:
-    description: Grants all CloverCheck staff permissions.
+  clovercheck.use:
+    description: Grants the standard CloverCheck staff command set.
     default: op
     children:
-      clovercheck.command.start: true
-      clovercheck.command.finish: true
-      clovercheck.command.cancel: true
-      clovercheck.command.status: true
-      clovercheck.command.list: true
-      clovercheck.command.reload: true
+      clovercheck.start: true
+      clovercheck.finish: true
+      clovercheck.cancel: true
+      clovercheck.status: true
+      clovercheck.list: true
+      clovercheck.history: true
+      clovercheck.info: true
+      clovercheck.reload: true
       clovercheck.notify: true
-  clovercheck.command.start:
-    default: op
-  clovercheck.command.finish:
-    default: op
-  clovercheck.command.cancel:
-    default: op
-  clovercheck.command.status:
-    default: op
-  clovercheck.command.list:
-    default: op
-  clovercheck.command.reload:
-    default: op
-  clovercheck.command.admit:
-    default: true
+      clovercheck.teleport: true
+  clovercheck.start:
+    default: false
+  clovercheck.finish:
+    default: false
+  clovercheck.cancel:
+    default: false
+  clovercheck.status:
+    default: false
+  clovercheck.list:
+    default: false
+  clovercheck.history:
+    default: false
+  clovercheck.info:
+    default: false
+  clovercheck.reload:
+    default: false
   clovercheck.notify:
-    default: op
+    default: false
+  clovercheck.teleport:
+    default: false
+  clovercheck.confess:
+    description: Allows a checked player to confirm a confession.
+    default: true
   clovercheck.bypass:
-    description: Prevents a player from being placed into a cheat check.
+    description: Prevents the player from being placed into a check.
+    default: op
+  clovercheck.override-bypass:
+    description: Allows staff to check a player with clovercheck.bypass.
     default: op

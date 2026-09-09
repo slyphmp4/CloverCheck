@@ -1,40 +1,36 @@
 # CloverCheck
 
-CloverCheck is a lightweight cheat-check workflow plugin for Minecraft/Paper 26.2 with a compatibility-first implementation for Cardboard.
+CloverCheck is a manual cheat-check workflow plugin for Minecraft/Paper 26.2. It does not detect KillAura, Reach, Fly, Speed, or other cheats automatically. It gives moderators a controlled, auditable workflow for checking a player manually.
 
-## Features
+## Requirements
 
-- Staff-controlled cheat-check sessions with configurable duration.
-- Full player freeze: movement, teleporting, interactions, inventory actions, item drop/pickup, damage and hunger.
-- Command allowlist while a player is being checked.
-- Persistent active sessions in `checks.yml`, including reconnect and server restart recovery.
-- Configurable disconnect behavior: keep the check active or fail it immediately.
-- Configurable console actions for cheats, refusal, admission, timeout and disconnect outcomes.
-- Staff notifications with hover details and clickable status lookup.
-- Adventure-based messages with `&` colors and `&FF0000`, `&#FF0000`, `<#FF0000>` HEX support.
-- Permission-aware tab completion.
-- No NMS, reflection or shaded server libraries.
+- Minecraft/Paper 26.2
+- Java 25
+- Gradle 9.7.1 via the included wrapper
+
+The implementation deliberately avoids NMS, CraftBukkit internals and reflection. It uses public Bukkit/Paper and Adventure APIs so the runtime surface remains as friendly as practical to Bukkit/Paper-compatible implementations such as Cardboard. Cardboard compatibility is not claimed as tested until it is exercised on an actual Cardboard 26.2 server.
 
 ## Commands
 
-| Command | Permission | Description |
-| --- | --- | --- |
-| `/check start <player> [duration]` | `clovercheck.command.start` | Start a cheat check. |
-| `/check finish <player> <clean\|cheats\|refusal>` | `clovercheck.command.finish` | Finish a check with a result. |
-| `/check cancel <player>` | `clovercheck.command.cancel` | Cancel a check without punishment. |
-| `/check status [player]` | `clovercheck.command.status` | Show check status. Checked players can view their own status. |
-| `/check list` | `clovercheck.command.list` | List active checks. |
-| `/check admit` | `clovercheck.command.admit` | Admit cheat usage while being checked. |
-| `/check reload` | `clovercheck.command.reload` | Reload configuration and messages. |
+- `/check <player> [reason...]` - start a check
+- `/check clean <player>` - finish as clean
+- `/check cheats <player> [comment...]` - finish with cheats found
+- `/check refuse <player> [comment...]` - finish as refused
+- `/check cancel <player> [reason...]` - cancel
+- `/check status [player]` - show current status and optional clickable staff controls
+- `/check list` - list active checks
+- `/check history <player>` - load persistent history
+- `/check info <id>` - inspect a persisted session
+- `/check confess` then `/check confess confirm` - checked-player confession flow
+- `/check reload` - reload safe runtime configuration and messages
 
-## Compatibility
+## Persistence and audit
 
-- Minecraft / Paper: `26.2`
-- Java: `25`
-- Gradle: `9.7.1`
-- `api-version`: `26.2`
+Session history and active-session recovery use SQLite. SQL operations run on a dedicated single-thread executor and values are bound with prepared statements. Audit events are stored separately and mirrored to the plugin logger.
 
-The plugin intentionally uses stable Bukkit/Paper APIs and avoids NMS and reflection to keep Cardboard compatibility as broad as possible.
+## Safety defaults
+
+Automatic punishment commands are empty by default. Quit policy defaults to `NOTIFY_ONLY`, timeout policy defaults to `MARK_AS_TIMEOUT`, and moderator teleport is disabled until explicitly enabled.
 
 ## Build
 
@@ -42,8 +38,4 @@ The plugin intentionally uses stable Bukkit/Paper APIs and avoids NMS and reflec
 ./gradlew clean build
 ```
 
-The JAR is produced in `build/libs/`.
-
-## Author
-
-`slyph`
+The production JAR is produced by the Shadow task and contains the SQLite JDBC driver. Paper/Adventure server APIs are not bundled.

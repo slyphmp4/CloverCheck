@@ -1,53 +1,86 @@
-version: 1
+version: 2
+locale: "ru_RU"
+debug: false
 
 check:
-  default-duration: '10m'
-  maximum-duration: '30m'
+  duration-seconds: 900
   reminder-interval-seconds: 60
-  discord: 'discord.gg/example'
-  notify-permission: 'clovercheck.notify'
-  bypass-permission: 'clovercheck.bypass'
-  allowed-commands:
-    - check
-    - clovercheck
-    - m
-    - msg
-    - tell
-    - r
-    - reply
-    - discord
+  one-active-per-moderator: true
+  default-reason: "Ручная проверка"
+  contact: "discord.gg/example"
+
+commands:
+  whitelist:
+    - "msg"
+    - "r"
+    - "helpop"
+    - "check"
+    - "clovercheck"
 
 freeze:
   movement: true
+  flight: true
   teleport: true
-  interactions: true
-  inventory: true
-  item-drop: true
-  item-pickup: true
+  block-break: true
+  block-place: true
+  block-interact: true
+  entity-interact: true
+  item-use: true
+  attack: true
   damage: true
   hunger: true
+  item-drop: true
+  item-pickup: true
+  inventory: true
+  held-slot: true
+  swap-hand: true
+  vehicle: true
+  commands: true
 
-disconnect:
-  mode: KEEP
+quit:
+  policy: "NOTIFY_ONLY"
+
+timeout:
+  policy: "MARK_AS_TIMEOUT"
+
+confess:
+  enabled: true
+  confirmation-seconds: 30
+
+staff:
+  notifications: true
+
+ui:
+  bossbar:
+    enabled: true
+    color: "YELLOW"
+    overlay: "PROGRESS"
+  title:
+    enabled: true
+    fade-in-ticks: 10
+    stay-ticks: 60
+    fade-out-ticks: 10
+  actionbar:
+    enabled: true
+  sounds:
+    enabled: true
+    start: "minecraft:block.note_block.pling"
+    complete: "minecraft:block.note_block.pling"
+    volume: 1.0
+    pitch: 1.0
+
+moderator:
+  teleport-to-player-enabled: false
+
+database:
+  file: "checks.db"
+  history-limit: 10
 
 actions:
-  cheats:
-    enabled: false
-    commands:
-      - 'ban %player% Использование читов'
-  refusal:
-    enabled: false
-    commands:
-      - 'ban %player% Отказ от проверки на читы'
-  admitted:
-    enabled: false
-    commands:
-      - 'ban %player% Признание в использовании читов'
-  timeout:
-    enabled: false
-    commands:
-      - 'ban %player% Не прошёл проверку на читы вовремя'
-  disconnected:
-    enabled: false
-    commands:
-      - 'ban %player% Выход во время проверки на читы'
+  clean: []
+  cheats-found: []
+  confessed: []
+  refused: []
+  left: []
+  timeout: []
+  cancelled: []

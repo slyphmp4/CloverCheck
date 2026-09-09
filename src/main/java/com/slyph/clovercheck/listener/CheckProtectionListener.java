@@ -1,6 +1,7 @@
 package com.slyph.clovercheck.listener;
 
 import com.slyph.clovercheck.config.PluginSettings;
+import com.slyph.clovercheck.service.CheckIsolationService;
 import com.slyph.clovercheck.service.CheckSessionService;
 import com.slyph.clovercheck.service.MessageService;
 import org.bukkit.Location;
@@ -62,10 +63,12 @@ import org.bukkit.event.vehicle.VehicleExitEvent;
 public final class CheckProtectionListener implements Listener {
     private final CheckSessionService checks;
     private final MessageService messages;
+    private final CheckIsolationService isolation;
 
-    public CheckProtectionListener(CheckSessionService checks, MessageService messages) {
+    public CheckProtectionListener(CheckSessionService checks, MessageService messages, CheckIsolationService isolation) {
         this.checks = checks;
         this.messages = messages;
+        this.isolation = isolation;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -101,6 +104,7 @@ public final class CheckProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onTeleport(PlayerTeleportEvent event) {
+        if (isolation.isInternalTeleport(event.getPlayer().getUniqueId())) return;
         if (freeze(event.getPlayer()).teleport()) event.setCancelled(true);
     }
 

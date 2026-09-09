@@ -21,6 +21,8 @@ public final class CheckUiService {
     private final MessageService messages;
     private final Logger logger;
     private final Map<UUID, BossBar> bossBars = new HashMap<>();
+    private boolean bossBarSupported = true;
+    private boolean bossBarFailureLogged;
 
     public CheckUiService(ConfigService config, MessageService messages, Logger logger) {
         this.config = config;
@@ -67,8 +69,13 @@ public final class CheckUiService {
 
     public void hide(Player player) {
         BossBar bossBar = bossBars.remove(player.getUniqueId());
-        if (bossBar != null) {
+        if (bossBar == null) {
+            return;
+        }
+        try {
             player.hideBossBar(bossBar);
+        } catch (RuntimeException exception) {
+            disableBossBar(exception);
         }
     }
 
@@ -81,7 +88,7 @@ public final class CheckUiService {
 
     private void showOrUpdateBossBar(Player player, Map<String, String> placeholders, float progress) {
         PluginSettings.BossBarSettings settings = config.settings().bossBar();
-        if (!settings.enabled()) {
+        if (!settings.enabled() || !bossBarSupported) {
             hide(player);
             return;
         }
@@ -89,15 +96,37 @@ public final class CheckUiService {
         BossBar.Overlay overlay = BossBar.Overlay.valueOf(settings.overlay());
         BossBar bossBar = bossBars.get(player.getUniqueId());
         if (bossBar == null) {
-            bossBar = BossBar.bossBar(messages.component("ui.bossbar.text", placeholders), clamp(progress), color, overlay);
-            bossBars.put(player.getUniqueId(), bossBar);
-            player.showBossBar(bossBar);
-        } else {
-            bossBar.name(messages.component("ui.bossbar.text", placeholders));
-            bossBar.progress(clamp(progress));
-            bossBar.color(color);
-            bossBar.overlay(overlay);
+            BossBar created = BossBar.bossBar(
+                    messages.component("ui.bossbar.text", placeholders),
+                    clamp(progress),
+                    color,
+                    overlay
+            );
+            try {
+                player.showBossBar(created);
+                bossBars.put(player.getUniqueId(), created);
+            } catch (RuntimeException exception) {
+                disableBossBar(exception);
+            }
+            return;
         }
+        bossBar.name(messages.component("ui.bossbar.text", placeholders));
+        bossBar.progress(clamp(progress));
+        bossBar.color(color);
+        bossBar.overlay(overlay);
+    }
+
+    private void disableBossBar(RuntimeException exception) {
+        bossBarSupported = false;
+        bossBars.clear();
+        if (bossBarFailureLogged) {
+            return;
+        }
+        bossBarFailureLogged = true;
+        logger.warning(
+                "Adventure BossBar is unavailable on this server runtime; CloverCheck will continue without BossBar ("
+                        + exception.getClass().getSimpleName() + ": " + safeMessage(exception) + ")"
+        );
     }
 
     private void updateActionBar(Player player, Map<String, String> placeholders) {
@@ -124,5 +153,13 @@ public final class CheckUiService {
 
     private static float clamp(float progress) {
         return Math.max(0.0F, Math.min(1.0F, progress));
+    }
+
+    private static String safeMessage(RuntimeException exception) {
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            return "no message";
+        }
+        return message.replace('\r', ' ').replace('\n', ' ');
     }
 }

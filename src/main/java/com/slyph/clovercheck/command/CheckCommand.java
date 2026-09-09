@@ -8,6 +8,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -59,7 +60,7 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean startDirect(CommandSender sender, String[] args) {
-        if (!permission(sender, "clovercheck.start")) return true;
+        if (!startPermission(sender)) return true;
         Player target = Bukkit.getPlayerExact(args[0]);
         if (target == null) {
             messages.send(sender, "player-not-found", Map.of("player", args[0]));
@@ -70,7 +71,7 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean startCompatibility(CommandSender sender, String[] args) {
-        if (!permission(sender, "clovercheck.start")) return true;
+        if (!startPermission(sender)) return true;
         if (args.length < 2) {
             messages.send(sender, "usage-start");
             return true;
@@ -199,6 +200,16 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
         return false;
     }
 
+    private boolean startPermission(CommandSender sender) {
+        if (hasStartAccess(sender)) return true;
+        messages.send(sender, "no-permission");
+        return false;
+    }
+
+    private static boolean hasStartAccess(CommandSender sender) {
+        return sender instanceof ConsoleCommandSender || sender.hasPermission("clovercheck.start");
+    }
+
     private static boolean isSelfTarget(CommandSender sender, String playerName) {
         return sender instanceof Player player && player.getName().equalsIgnoreCase(playerName);
     }
@@ -218,7 +229,7 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
             if (sender instanceof Player player && checks.isChecked(player.getUniqueId()) && sender.hasPermission("clovercheck.confess")) {
                 options.add("confess");
             }
-            if (sender.hasPermission("clovercheck.start")) {
+            if (hasStartAccess(sender)) {
                 options.addAll(startablePlayers(sender));
             }
             return filter(options, args[0]);
@@ -229,7 +240,7 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
                     && checks.isChecked(player.getUniqueId()) && sender.hasPermission("clovercheck.confess")) {
                 return filter(List.of("confirm"), args[1]);
             }
-            if (sub.equals("start") && sender.hasPermission("clovercheck.start")) {
+            if (sub.equals("start") && hasStartAccess(sender)) {
                 return filter(startablePlayers(sender), args[1]);
             }
             if (List.of("clean", "cheats", "refuse").contains(sub) && sender.hasPermission("clovercheck.finish")) {

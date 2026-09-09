@@ -7,7 +7,11 @@ import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.title.Title;
+import org.bukkit.Bukkit;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -22,12 +26,16 @@ import java.util.logging.Logger;
 public final class CheckUiService {
     private static final int CHECK_BLINDNESS_DURATION_TICKS = 60;
     private static final int CHECK_BLINDNESS_REFRESH_THRESHOLD_TICKS = 40;
+    private static final int CARDBOARD_BLINDNESS_SECONDS = 2;
     private static final int PERSISTENT_TITLE_STAY_TICKS = 40;
 
     private final ConfigService config;
     private final MessageService messages;
     private final Logger logger;
-    private final Map<UUID, BossBar> bossBars = new HashMap<>();
+    private final boolean cardboardRuntime;
+    private final PlainTextComponentSerializer plainText = PlainTextComponentSerializer.plainText();
+    private final Map<UUID, BossBar> adventureBossBars = new HashMap<>();
+    private final Map<UUID, org.bukkit.boss.BossBar> bukkitBossBars = new HashMap<>();
     private final Map<UUID, BlindnessSnapshot> blindnessBeforeCheck = new HashMap<>();
     private boolean bossBarSupported = true;
     private boolean bossBarFailureLogged;
@@ -36,10 +44,11 @@ public final class CheckUiService {
     private boolean blindnessSupported = true;
     private boolean blindnessFailureLogged;
 
-    public CheckUiService(ConfigService config, MessageService messages, Logger logger) {
+    public CheckUiService(ConfigService config, MessageService messages, Logger logger, boolean cardboardRuntime) {
         this.config = config;
         this.messages = messages;
         this.logger = logger;
+        this.cardboardRuntime = cardboardRuntime;
     }
 
     public void showStart(Player player, Map<String, String> placeholders, float progress) {
@@ -76,14 +85,10 @@ public final class CheckUiService {
     }
 
     public void hide(Player player) {
-        BossBar bossBar = bossBars.remove(player.getUniqueId());
-        if (bossBar == null) {
-            return;
-        }
-        try {
-            player.hideBossBar(bossBar);
-        } catch (RuntimeException exception) {
-            disableBossBar(exception);
+        if (cardboardRuntime) {
+            hideBukkitBossBar(player);
+        } else {
+            hideAdventureBossBar(player);
         }
     }
 
@@ -96,7 +101,12 @@ public final class CheckUiService {
                 player.sendActionBar(Component.empty());
             }
         }
-        bossBars.clear();
+        adventureBossBars.clear();
+        for (org.bukkit.boss.BossBar bossBar : bukkitBossBars.values()) {
+            bossBar.removeAll();
+            bossBar.setVisible(false);
+        }
+        bukkitBossBars.clear();
         blindnessBeforeCheck.clear();
     }
 
@@ -106,9 +116,22 @@ public final class CheckUiService {
             hide(player);
             return;
         }
+        if (cardboardRuntime) {
+            showOrUpdateBukkitBossBar(player, placeholders, progress, settings);
+        } else {
+            showOrUpdateAdventureBossBar(player, placeholders, progress, settings);
+        }
+    }
+
+    private void showOrUpdateAdventureBossBar(
+            Player player,
+            Map<String, String> placeholders,
+            float progress,
+            PluginSettings.BossBarSettings settings
+    ) {
         BossBar.Color color = BossBar.Color.valueOf(settings.color());
         BossBar.Overlay overlay = BossBar.Overlay.valueOf(settings.overlay());
-        BossBar bossBar = bossBars.get(player.getUniqueId());
+        BossBar bossBar = adventureBossBars.get(player.getUniqueId());
         if (bossBar == null) {
             BossBar created = BossBar.bossBar(
                     messages.component("ui.bossbar.text", placeholders),
@@ -118,9 +141,9 @@ public final class CheckUiService {
             );
             try {
                 player.showBossBar(created);
-                bossBars.put(player.getUniqueId(), created);
+                adventureBossBars.put(player.getUniqueId(), created);
             } catch (RuntimeException exception) {
-                disableBossBar(exception);
+                disableBossBar("Adventure BossBar", exception);
             }
             return;
         }
@@ -128,6 +151,64 @@ public final class CheckUiService {
         bossBar.progress(clamp(progress));
         bossBar.color(color);
         bossBar.overlay(overlay);
+    }
+
+    private void showOrUpdateBukkitBossBar(
+            Player player,
+            Map<String, String> placeholders,
+            float progress,
+            PluginSettings.BossBarSettings settings
+    ) {
+        try {
+            String title = plainText.serialize(messages.component("ui.bossbar.text", placeholders));
+            BarColor color = BarColor.valueOf(settings.color());
+            BarStyle style = bukkitStyle(settings.overlay());
+            org.bukkit.boss.BossBar bossBar = bukkitBossBars.get(player.getUniqueId());
+            if (bossBar == null) {
+                bossBar = Bukkit.createBossBar(title, color, style);
+                bossBar.setProgress(clamp(progress));
+                bossBar.addPlayer(player);
+                bossBar.setVisible(true);
+                bukkitBossBars.put(player.getUniqueId(), bossBar);
+                return;
+            }
+            bossBar.setTitle(title);
+            bossBar.setProgress(clamp(progress));
+            bossBar.setColor(color);
+            bossBar.setStyle(style);
+            if (!bossBar.getPlayers().contains(player)) {
+                bossBar.addPlayer(player);
+            }
+            bossBar.setVisible(true);
+        } catch (RuntimeException exception) {
+            disableBossBar("Bukkit/Cardboard BossBar", exception);
+            hideBukkitBossBar(player);
+        }
+    }
+
+    private void hideAdventureBossBar(Player player) {
+        BossBar bossBar = adventureBossBars.remove(player.getUniqueId());
+        if (bossBar == null) {
+            return;
+        }
+        try {
+            player.hideBossBar(bossBar);
+        } catch (RuntimeException exception) {
+            disableBossBar("Adventure BossBar", exception);
+        }
+    }
+
+    private void hideBukkitBossBar(Player player) {
+        org.bukkit.boss.BossBar bossBar = bukkitBossBars.remove(player.getUniqueId());
+        if (bossBar == null) {
+            return;
+        }
+        try {
+            bossBar.removeAll();
+            bossBar.setVisible(false);
+        } catch (RuntimeException exception) {
+            disableBossBar("Bukkit/Cardboard BossBar", exception);
+        }
     }
 
     private void showStartTitle(Player player, Map<String, String> placeholders) {
@@ -191,6 +272,14 @@ public final class CheckUiService {
         if (!blindnessSupported) {
             return;
         }
+        if (cardboardRuntime) {
+            ensureCardboardBlindness(player);
+        } else {
+            ensureBukkitBlindness(player);
+        }
+    }
+
+    private void ensureBukkitBlindness(Player player) {
         try {
             blindnessBeforeCheck.computeIfAbsent(
                     player.getUniqueId(),
@@ -213,7 +302,27 @@ public final class CheckUiService {
         }
     }
 
+    private void ensureCardboardBlindness(Player player) {
+        String playerName = player.getName();
+        if (!playerName.matches("[A-Za-z0-9_]{1,16}")) {
+            disableBlindness(new IllegalArgumentException("unsafe player name for vanilla command fallback"));
+            return;
+        }
+        try {
+            String command = "minecraft:effect give " + playerName + " minecraft:blindness "
+                    + CARDBOARD_BLINDNESS_SECONDS + " 0 true";
+            if (!Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command)) {
+                disableBlindness(new IllegalStateException("vanilla effect command was rejected"));
+            }
+        } catch (RuntimeException exception) {
+            disableBlindness(exception);
+        }
+    }
+
     private void restoreBlindness(Player player) {
+        if (cardboardRuntime) {
+            return;
+        }
         BlindnessSnapshot snapshot = blindnessBeforeCheck.remove(player.getUniqueId());
         if (snapshot == null) {
             return;
@@ -241,15 +350,15 @@ public final class CheckUiService {
         }
     }
 
-    private void disableBossBar(RuntimeException exception) {
+    private void disableBossBar(String implementation, RuntimeException exception) {
         bossBarSupported = false;
-        bossBars.clear();
+        adventureBossBars.clear();
         if (bossBarFailureLogged) {
             return;
         }
         bossBarFailureLogged = true;
         logger.warning(
-                "Adventure BossBar is unavailable on this server runtime; CloverCheck will continue without BossBar ("
+                implementation + " is unavailable on this server runtime; CloverCheck will continue without BossBar ("
                         + exception.getClass().getSimpleName() + ": " + safeMessage(exception) + ")"
         );
     }
@@ -294,6 +403,16 @@ public final class CheckUiService {
         } catch (IllegalArgumentException exception) {
             logger.warning("Invalid CloverCheck sound key: " + key);
         }
+    }
+
+    private static BarStyle bukkitStyle(String overlay) {
+        return switch (overlay) {
+            case "NOTCHED_6" -> BarStyle.SEGMENTED_6;
+            case "NOTCHED_10" -> BarStyle.SEGMENTED_10;
+            case "NOTCHED_12" -> BarStyle.SEGMENTED_12;
+            case "NOTCHED_20" -> BarStyle.SEGMENTED_20;
+            default -> BarStyle.SOLID;
+        };
     }
 
     private static int remainingDuration(PotionEffect effect, Instant capturedAt, Instant now) {

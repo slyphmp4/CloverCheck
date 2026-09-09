@@ -16,6 +16,11 @@ import com.slyph.clovercheck.storage.sqlite.SQLiteCheckRepository;
 import com.slyph.clovercheck.ui.CheckUiService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.plugin.RegisteredListener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.time.Duration;
@@ -88,6 +93,13 @@ public final class CloverCheck extends JavaPlugin {
     private void bootstrap(List<CheckSessionSnapshot> restored) {
         if (!isEnabled()) return;
         boolean fabricRuntime = isFabricRuntime();
+        getLogger().info(
+                "Runtime: server=" + Bukkit.getName()
+                        + ", version=" + Bukkit.getVersion()
+                        + ", bukkit=" + Bukkit.getBukkitVersion()
+                        + ", fabric=" + fabricRuntime
+        );
+
         AuditService audit = new AuditService(repository, getLogger());
         ActionService actions = new ActionService(configService, audit, getLogger());
         CheckUiService ui = new CheckUiService(configService, messageService, getLogger());
@@ -100,7 +112,19 @@ public final class CloverCheck extends JavaPlugin {
         }
 
         checkSessions.resumeOnlineSessions();
-        getServer().getPluginManager().registerEvents(new CheckProtectionListener(checkSessions, messageService), this);
+        CheckProtectionListener protectionListener = new CheckProtectionListener(
+                checkSessions,
+                messageService,
+                configService,
+                getLogger()
+        );
+        getServer().getPluginManager().registerEvents(protectionListener, this);
+        if (!verifyProtectionRegistration(protectionListener)) {
+            getLogger().severe("CloverCheck protection listener registration is incomplete. Disabling plugin to avoid running without player protection.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
         if (fabricRuntime) {
             if (!new LegacyCheckChatBridge(this, checkChatService).register()) {
                 getLogger().severe("CloverCheck cannot safely isolate check chat on this Fabric/Cardboard runtime.");
@@ -122,6 +146,27 @@ public final class CloverCheck extends JavaPlugin {
         command.setTabCompleter(checkCommand);
         checkSessions.startTicker();
         getLogger().info("CloverCheck initialized with " + restored.size() + " persisted active session(s).");
+    }
+
+    private boolean verifyProtectionRegistration(CheckProtectionListener listener) {
+        boolean move = registered(PlayerMoveEvent.getHandlerList().getRegisteredListeners(), listener);
+        boolean inventory = registered(InventoryClickEvent.getHandlerList().getRegisteredListeners(), listener);
+        boolean interact = registered(PlayerInteractEvent.getHandlerList().getRegisteredListeners(), listener);
+        getLogger().info(
+                "Protection listener registration: move=" + move
+                        + ", inventory=" + inventory
+                        + ", interact=" + interact
+        );
+        return move && inventory && interact;
+    }
+
+    private boolean registered(RegisteredListener[] listeners, Listener target) {
+        for (RegisteredListener registered : listeners) {
+            if (registered.getPlugin() == this && registered.getListener() == target) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isFabricRuntime() {

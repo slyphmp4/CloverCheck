@@ -24,4 +24,4 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Build and test
-        run: ./gradlew clean build
+        run: ./gradlew clean build --warning-mode all

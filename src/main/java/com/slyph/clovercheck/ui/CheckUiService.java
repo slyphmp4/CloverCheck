@@ -9,20 +9,32 @@ import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 public final class CheckUiService {
+    private static final int CHECK_BLINDNESS_DURATION_TICKS = 60;
+    private static final int CHECK_BLINDNESS_REFRESH_THRESHOLD_TICKS = 40;
+    private static final int PERSISTENT_TITLE_STAY_TICKS = 40;
+
     private final ConfigService config;
     private final MessageService messages;
     private final Logger logger;
     private final Map<UUID, BossBar> bossBars = new HashMap<>();
+    private final Map<UUID, BlindnessSnapshot> blindnessBeforeCheck = new HashMap<>();
     private boolean bossBarSupported = true;
     private boolean bossBarFailureLogged;
+    private boolean titleSupported = true;
+    private boolean titleFailureLogged;
+    private boolean blindnessSupported = true;
+    private boolean blindnessFailureLogged;
 
     public CheckUiService(ConfigService config, MessageService messages, Logger logger) {
         this.config = config;
@@ -32,35 +44,31 @@ public final class CheckUiService {
 
     public void showStart(Player player, Map<String, String> placeholders, float progress) {
         PluginSettings settings = config.settings();
+        ensureBlindness(player);
         showOrUpdateBossBar(player, placeholders, progress);
-        if (settings.title().enabled()) {
-            Title.Times times = Title.Times.times(
-                    ticks(settings.title().fadeInTicks()),
-                    ticks(settings.title().stayTicks()),
-                    ticks(settings.title().fadeOutTicks())
-            );
-            player.showTitle(Title.title(
-                    messages.component("ui.title.title", placeholders),
-                    messages.component("ui.title.subtitle", placeholders),
-                    times
-            ));
-        }
+        showStartTitle(player, placeholders);
         playConfiguredSound(player, settings.sounds().startKey());
         updateActionBar(player, placeholders);
     }
 
     public void showResume(Player player, Map<String, String> placeholders, float progress) {
+        ensureBlindness(player);
         showOrUpdateBossBar(player, placeholders, progress);
+        showPersistentTitle(player, placeholders);
         updateActionBar(player, placeholders);
     }
 
     public void update(Player player, Map<String, String> placeholders, float progress) {
+        ensureBlindness(player);
         showOrUpdateBossBar(player, placeholders, progress);
+        showPersistentTitle(player, placeholders);
         updateActionBar(player, placeholders);
     }
 
     public void complete(Player player, Map<String, String> placeholders) {
         hide(player);
+        restoreBlindness(player);
+        clearTitle(player);
         playConfiguredSound(player, config.settings().sounds().completeKey());
         if (config.settings().actionBar().enabled()) {
             player.sendActionBar(Component.empty());
@@ -82,8 +90,14 @@ public final class CheckUiService {
     public void hideAll(Iterable<? extends Player> players) {
         for (Player player : players) {
             hide(player);
+            restoreBlindness(player);
+            clearTitle(player);
+            if (config.settings().actionBar().enabled()) {
+                player.sendActionBar(Component.empty());
+            }
         }
         bossBars.clear();
+        blindnessBeforeCheck.clear();
     }
 
     private void showOrUpdateBossBar(Player player, Map<String, String> placeholders, float progress) {
@@ -116,6 +130,117 @@ public final class CheckUiService {
         bossBar.overlay(overlay);
     }
 
+    private void showStartTitle(Player player, Map<String, String> placeholders) {
+        PluginSettings.TitleSettings settings = config.settings().title();
+        if (!settings.enabled() || !titleSupported) {
+            return;
+        }
+        try {
+            Title.Times times = Title.Times.times(
+                    ticks(settings.fadeInTicks()),
+                    ticks(settings.stayTicks()),
+                    ticks(settings.fadeOutTicks())
+            );
+            player.showTitle(Title.title(
+                    messages.component("ui.title.title", placeholders),
+                    messages.component("ui.title.subtitle", placeholders),
+                    times
+            ));
+        } catch (RuntimeException exception) {
+            disableTitle(exception);
+        }
+    }
+
+    private void showPersistentTitle(Player player, Map<String, String> placeholders) {
+        PluginSettings.TitleSettings settings = config.settings().title();
+        if (!settings.enabled() || !titleSupported) {
+            return;
+        }
+        try {
+            Title.Times times = Title.Times.times(
+                    Duration.ZERO,
+                    ticks(Math.max(PERSISTENT_TITLE_STAY_TICKS, settings.stayTicks())),
+                    Duration.ZERO
+            );
+            player.showTitle(Title.title(
+                    messages.component("ui.title.title", placeholders),
+                    messages.component("ui.title.subtitle", placeholders),
+                    times
+            ));
+        } catch (RuntimeException exception) {
+            disableTitle(exception);
+        }
+    }
+
+    private void clearTitle(Player player) {
+        if (!titleSupported) {
+            return;
+        }
+        try {
+            player.clearTitle();
+        } catch (RuntimeException exception) {
+            disableTitle(exception);
+        }
+    }
+
+    private void ensureBlindness(Player player) {
+        if (!config.settings().freeze().blindness()) {
+            restoreBlindness(player);
+            return;
+        }
+        if (!blindnessSupported) {
+            return;
+        }
+        try {
+            blindnessBeforeCheck.computeIfAbsent(
+                    player.getUniqueId(),
+                    ignored -> new BlindnessSnapshot(player.getPotionEffect(PotionEffectType.BLINDNESS), Instant.now())
+            );
+            PotionEffect current = player.getPotionEffect(PotionEffectType.BLINDNESS);
+            if (current != null && (current.isInfinite() || current.getDuration() > CHECK_BLINDNESS_REFRESH_THRESHOLD_TICKS)) {
+                return;
+            }
+            player.addPotionEffect(new PotionEffect(
+                    PotionEffectType.BLINDNESS,
+                    CHECK_BLINDNESS_DURATION_TICKS,
+                    0,
+                    false,
+                    false,
+                    false
+            ));
+        } catch (RuntimeException exception) {
+            disableBlindness(exception);
+        }
+    }
+
+    private void restoreBlindness(Player player) {
+        BlindnessSnapshot snapshot = blindnessBeforeCheck.remove(player.getUniqueId());
+        if (snapshot == null || !blindnessSupported) {
+            return;
+        }
+        try {
+            player.removePotionEffect(PotionEffectType.BLINDNESS);
+            PotionEffect original = snapshot.effect();
+            if (original == null) {
+                return;
+            }
+            int remaining = remainingDuration(original, snapshot.capturedAt(), Instant.now());
+            if (remaining == 0) {
+                return;
+            }
+            player.addPotionEffect(new PotionEffect(
+                    PotionEffectType.BLINDNESS,
+                    remaining,
+                    original.getAmplifier(),
+                    original.isAmbient(),
+                    original.hasParticles(),
+                    original.hasIcon()
+            ));
+        } catch (RuntimeException exception) {
+            disableBlindness(exception);
+        }
+    }
+
     private void disableBossBar(RuntimeException exception) {
         bossBarSupported = false;
         bossBars.clear();
@@ -125,6 +250,31 @@ public final class CheckUiService {
         bossBarFailureLogged = true;
         logger.warning(
                 "Adventure BossBar is unavailable on this server runtime; CloverCheck will continue without BossBar ("
+                        + exception.getClass().getSimpleName() + ": " + safeMessage(exception) + ")"
+        );
+    }
+
+    private void disableTitle(RuntimeException exception) {
+        titleSupported = false;
+        if (titleFailureLogged) {
+            return;
+        }
+        titleFailureLogged = true;
+        logger.warning(
+                "Adventure Title is unavailable on this server runtime; CloverCheck will continue without Title ("
+                        + exception.getClass().getSimpleName() + ": " + safeMessage(exception) + ")"
+        );
+    }
+
+    private void disableBlindness(RuntimeException exception) {
+        blindnessSupported = false;
+        blindnessBeforeCheck.clear();
+        if (blindnessFailureLogged) {
+            return;
+        }
+        blindnessFailureLogged = true;
+        logger.warning(
+                "Blindness enforcement is unavailable on this server runtime; CloverCheck will continue without it ("
                         + exception.getClass().getSimpleName() + ": " + safeMessage(exception) + ")"
         );
     }
@@ -147,6 +297,18 @@ public final class CheckUiService {
         }
     }
 
+    private static int remainingDuration(PotionEffect effect, Instant capturedAt, Instant now) {
+        if (effect.isInfinite()) {
+            return PotionEffect.INFINITE_DURATION;
+        }
+        long elapsedTicks = Math.max(0L, Duration.between(capturedAt, now).toMillis() / 50L);
+        long remaining = effect.getDuration() - elapsedTicks;
+        if (remaining <= 0L) {
+            return 0;
+        }
+        return (int) Math.min(Integer.MAX_VALUE, remaining);
+    }
+
     private static Duration ticks(int ticks) {
         return Duration.ofMillis(ticks * 50L);
     }
@@ -161,5 +323,8 @@ public final class CheckUiService {
             return "no message";
         }
         return message.replace('\r', ' ').replace('\n', ' ');
+    }
+
+    private record BlindnessSnapshot(PotionEffect effect, Instant capturedAt) {
     }
 }

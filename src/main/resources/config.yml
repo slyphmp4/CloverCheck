@@ -1,4 +1,4 @@
-version: 2
+version: 3
 locale: "ru_RU"
 debug: false
 
@@ -19,6 +19,7 @@ commands:
 
 freeze:
   movement: true
+  blindness: true
   flight: true
   teleport: true
   block-break: true

@@ -91,6 +91,7 @@ public record PluginSettings(
 
     public record FreezeSettings(
             boolean movement,
+            boolean blindness,
             boolean flight,
             boolean teleport,
             boolean blockBreak,

@@ -46,7 +46,7 @@ class PluginSettingsTest {
 
     private static PluginSettings.FreezeSettings freeze() {
         return new PluginSettings.FreezeSettings(
-                true, true, true, true, true, true, true, true, true,
+                true, true, true, true, true, true, true, true, true, true,
                 true, true, true, true, true, true, true, true, true
         );
     }

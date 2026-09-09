@@ -11,28 +11,52 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockDamageEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.entity.EntityToggleGlideEvent;
+import org.bukkit.event.entity.EntityToggleSwimEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.ProjectileLaunchEvent;
+import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCreativeEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.inventory.SmithItemEvent;
+import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
+import org.bukkit.event.player.PlayerBedEnterEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerEditBookEvent;
+import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.event.player.PlayerHarvestBlockEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerLeashEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerPickupArrowEvent;
+import org.bukkit.event.player.PlayerPickupExperienceEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerShearEntityEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.PlayerTakeLecternBookEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerToggleFlightEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.event.player.PlayerToggleSprintEvent;
+import org.bukkit.event.player.PlayerUnleashEntityEvent;
+import org.bukkit.event.player.PlayerVelocityEvent;
 import org.bukkit.event.vehicle.VehicleEnterEvent;
 import org.bukkit.event.vehicle.VehicleExitEvent;
 
@@ -54,6 +78,31 @@ public final class CheckProtectionListener implements Listener {
         allowed.setYaw(to.getYaw());
         allowed.setPitch(to.getPitch());
         event.setTo(allowed);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onVelocity(PlayerVelocityEvent event) {
+        if (freeze(event.getPlayer()).movement()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onSneak(PlayerToggleSneakEvent event) {
+        if (freeze(event.getPlayer()).movement()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onSprint(PlayerToggleSprintEvent event) {
+        if (freeze(event.getPlayer()).movement()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onGlide(EntityToggleGlideEvent event) {
+        if (event.getEntity() instanceof Player player && freeze(player).movement()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onSwim(EntityToggleSwimEvent event) {
+        if (event.getEntity() instanceof Player player && freeze(player).movement()) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -85,6 +134,71 @@ public final class CheckProtectionListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onArmorStandManipulate(PlayerArmorStandManipulateEvent event) {
+        if (freeze(event.getPlayer()).entityInteract()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onLeash(PlayerLeashEntityEvent event) {
+        if (freeze(event.getPlayer()).entityInteract()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onUnleash(PlayerUnleashEntityEvent event) {
+        if (freeze(event.getPlayer()).entityInteract()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onShear(PlayerShearEntityEvent event) {
+        if (freeze(event.getPlayer()).entityInteract()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onFish(PlayerFishEvent event) {
+        if (freeze(event.getPlayer()).itemUse()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onBucketFill(PlayerBucketFillEvent event) {
+        if (freeze(event.getPlayer()).itemUse()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
+        if (freeze(event.getPlayer()).itemUse()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onConsume(PlayerItemConsumeEvent event) {
+        if (freeze(event.getPlayer()).itemUse()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onEditBook(PlayerEditBookEvent event) {
+        if (freeze(event.getPlayer()).inventory()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onBedEnter(PlayerBedEnterEvent event) {
+        if (freeze(event.getPlayer()).blockInteract()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onHarvest(PlayerHarvestBlockEvent event) {
+        if (freeze(event.getPlayer()).blockInteract()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onLecternTake(PlayerTakeLecternBookEvent event) {
+        if (freeze(event.getPlayer()).blockInteract()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onBreakStart(BlockDamageEvent event) {
+        if (freeze(event.getPlayer()).blockBreak()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onBreak(BlockBreakEvent event) {
         if (freeze(event.getPlayer()).blockBreak()) event.setCancelled(true);
     }
@@ -96,6 +210,21 @@ public final class CheckProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getWhoClicked() instanceof Player player && freeze(player).inventory()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onInventoryCreative(InventoryCreativeEvent event) {
+        if (event.getWhoClicked() instanceof Player player && freeze(player).inventory()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onCraft(CraftItemEvent event) {
+        if (event.getWhoClicked() instanceof Player player && freeze(player).inventory()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onSmith(SmithItemEvent event) {
         if (event.getWhoClicked() instanceof Player player && freeze(player).inventory()) event.setCancelled(true);
     }
 
@@ -120,6 +249,16 @@ public final class CheckProtectionListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onArrowPickup(PlayerPickupArrowEvent event) {
+        if (freeze(event.getPlayer()).itemPickup()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onExperiencePickup(PlayerPickupExperienceEvent event) {
+        if (freeze(event.getPlayer()).itemPickup()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onSwap(PlayerSwapHandItemsEvent event) {
         if (freeze(event.getPlayer()).swapHand()) event.setCancelled(true);
     }
@@ -127,6 +266,12 @@ public final class CheckProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onHeldItem(PlayerItemHeldEvent event) {
         if (freeze(event.getPlayer()).heldSlot()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+        Projectile projectile = event.getEntity();
+        if (projectile.getShooter() instanceof Player player && freeze(player).itemUse()) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -205,7 +350,7 @@ public final class CheckProtectionListener implements Listener {
     }
 
     private static final PluginSettings.FreezeSettings DISABLED = new PluginSettings.FreezeSettings(
-            false, false, false, false, false, false, false, false, false,
+            false, false, false, false, false, false, false, false, false, false,
             false, false, false, false, false, false, false, false, false
     );
 }

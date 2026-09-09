@@ -75,15 +75,25 @@ public final class ConfigService {
         config.load(file);
         Set<String> whitelist = readWhitelist(config);
         PluginSettings.FreezeSettings freeze = new PluginSettings.FreezeSettings(
-                requiredBoolean(config, "freeze.movement"), requiredBoolean(config, "freeze.flight"),
-                requiredBoolean(config, "freeze.teleport"), requiredBoolean(config, "freeze.block-break"),
-                requiredBoolean(config, "freeze.block-place"), requiredBoolean(config, "freeze.block-interact"),
-                requiredBoolean(config, "freeze.entity-interact"), requiredBoolean(config, "freeze.item-use"),
-                requiredBoolean(config, "freeze.attack"), requiredBoolean(config, "freeze.damage"),
-                requiredBoolean(config, "freeze.hunger"), requiredBoolean(config, "freeze.item-drop"),
-                requiredBoolean(config, "freeze.item-pickup"), requiredBoolean(config, "freeze.inventory"),
-                requiredBoolean(config, "freeze.held-slot"), requiredBoolean(config, "freeze.swap-hand"),
-                requiredBoolean(config, "freeze.vehicle"), requiredBoolean(config, "freeze.commands")
+                requiredBoolean(config, "freeze.movement"),
+                optionalBoolean(config, "freeze.blindness", true),
+                requiredBoolean(config, "freeze.flight"),
+                requiredBoolean(config, "freeze.teleport"),
+                requiredBoolean(config, "freeze.block-break"),
+                requiredBoolean(config, "freeze.block-place"),
+                requiredBoolean(config, "freeze.block-interact"),
+                requiredBoolean(config, "freeze.entity-interact"),
+                requiredBoolean(config, "freeze.item-use"),
+                requiredBoolean(config, "freeze.attack"),
+                requiredBoolean(config, "freeze.damage"),
+                requiredBoolean(config, "freeze.hunger"),
+                requiredBoolean(config, "freeze.item-drop"),
+                requiredBoolean(config, "freeze.item-pickup"),
+                requiredBoolean(config, "freeze.inventory"),
+                requiredBoolean(config, "freeze.held-slot"),
+                requiredBoolean(config, "freeze.swap-hand"),
+                requiredBoolean(config, "freeze.vehicle"),
+                requiredBoolean(config, "freeze.commands")
         );
         Map<CheckResult, List<String>> actions = new EnumMap<>(CheckResult.class);
         for (CheckResult result : CheckResult.values()) {
@@ -145,6 +155,12 @@ public final class ConfigService {
     }
 
     private static boolean requiredBoolean(YamlConfiguration config, String key) {
+        if (!config.isBoolean(key)) throw new IllegalArgumentException(key + " must be true or false");
+        return config.getBoolean(key);
+    }
+
+    private static boolean optionalBoolean(YamlConfiguration config, String key, boolean defaultValue) {
+        if (!config.contains(key)) return defaultValue;
         if (!config.isBoolean(key)) throw new IllegalArgumentException(key + " must be true or false");
         return config.getBoolean(key);
     }

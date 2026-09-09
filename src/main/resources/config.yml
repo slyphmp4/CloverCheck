@@ -1,0 +1,53 @@
+version: 1
+
+check:
+  default-duration: '10m'
+  maximum-duration: '30m'
+  reminder-interval-seconds: 60
+  discord: 'discord.gg/example'
+  notify-permission: 'clovercheck.notify'
+  bypass-permission: 'clovercheck.bypass'
+  allowed-commands:
+    - check
+    - clovercheck
+    - m
+    - msg
+    - tell
+    - r
+    - reply
+    - discord
+
+freeze:
+  movement: true
+  teleport: true
+  interactions: true
+  inventory: true
+  item-drop: true
+  item-pickup: true
+  damage: true
+  hunger: true
+
+disconnect:
+  mode: KEEP
+
+actions:
+  cheats:
+    enabled: false
+    commands:
+      - 'ban %player% Использование читов'
+  refusal:
+    enabled: false
+    commands:
+      - 'ban %player% Отказ от проверки на читы'
+  admitted:
+    enabled: false
+    commands:
+      - 'ban %player% Признание в использовании читов'
+  timeout:
+    enabled: false
+    commands:
+      - 'ban %player% Не прошёл проверку на читы вовремя'
+  disconnected:
+    enabled: false
+    commands:
+      - 'ban %player% Выход во время проверки на читы'

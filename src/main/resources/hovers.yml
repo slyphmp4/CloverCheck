@@ -1,0 +1,20 @@
+staff-notify-start:
+  lines:
+    - '&7'
+    - '&#E9C66E ⏳ Проверка игрока &#FFF0B8&l%player%'
+    - '&#BFBFBF ▪ Модератор: &#FFFFFF%staff%'
+    - '&#BFBFBF ▪ Осталось: &#FFFFFF%time%'
+    - '&#BFBFBF ▪ ID: &#FFFFFF%id%'
+    - '&7'
+    - '&#E0E0E0 ✎ Нажмите, чтобы открыть статус проверки'
+  click-command: '/check status %player%'
+
+staff-notify-quit:
+  lines:
+    - '&7'
+    - '&#FF5A5A ❌ Игрок вышел во время проверки'
+    - '&#BFBFBF ▪ Игрок: &#FFFFFF%player%'
+    - '&#BFBFBF ▪ ID: &#FFFFFF%id%'
+    - '&7'
+    - '&#E0E0E0 ✎ Нажмите, чтобы открыть статус проверки'
+  click-command: '/check status %player%'

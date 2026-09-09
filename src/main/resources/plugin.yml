@@ -1,0 +1,43 @@
+name: CloverCheck
+version: '${version}'
+main: com.slyph.clovercheck.CloverCheckPlugin
+api-version: '26.2'
+author: slyph
+description: Cheat-check workflow and player freeze system for Paper and Cardboard.
+website: https://github.com/slyphmp4/CloverCheck
+commands:
+  check:
+    description: Manage player cheat checks.
+    usage: /check
+    aliases: [clovercheck]
+permissions:
+  clovercheck.staff:
+    description: Grants all CloverCheck staff permissions.
+    default: op
+    children:
+      clovercheck.command.start: true
+      clovercheck.command.finish: true
+      clovercheck.command.cancel: true
+      clovercheck.command.status: true
+      clovercheck.command.list: true
+      clovercheck.command.reload: true
+      clovercheck.notify: true
+  clovercheck.command.start:
+    default: op
+  clovercheck.command.finish:
+    default: op
+  clovercheck.command.cancel:
+    default: op
+  clovercheck.command.status:
+    default: op
+  clovercheck.command.list:
+    default: op
+  clovercheck.command.reload:
+    default: op
+  clovercheck.command.admit:
+    default: true
+  clovercheck.notify:
+    default: op
+  clovercheck.bypass:
+    description: Prevents a player from being placed into a cheat check.
+    default: op

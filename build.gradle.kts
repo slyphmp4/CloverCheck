@@ -1,5 +1,6 @@
 plugins {
     java
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 group = "com.slyph"
@@ -18,7 +19,11 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.2.build.121-stable")
 
-    testImplementation(platform("org.junit:junit-bom:6.1.2"))
+    implementation("org.xerial:sqlite-jdbc:3.53.2.1") {
+        exclude(group = "org.slf4j")
+    }
+
+    testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
@@ -38,6 +43,20 @@ tasks.processResources {
     filesMatching("plugin.yml") {
         expand("version" to pluginVersion)
     }
+}
+
+tasks.jar {
+    archiveClassifier.set("plain")
+}
+
+tasks.shadowJar {
+    archiveClassifier.set("")
+    mergeServiceFiles()
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+}
+
+tasks.build {
+    dependsOn(tasks.shadowJar)
 }
 
 tasks.test {

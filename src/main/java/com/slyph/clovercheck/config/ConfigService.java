@@ -46,12 +46,16 @@ public final class ConfigService {
         PluginSettings current = settings;
         try {
             PluginSettings loaded = readSettings();
-            boolean databaseChanged = current != null && !current.database().equals(loaded.database());
-            if (databaseChanged) {
-                loaded = loaded.withDatabase(current.database());
+            boolean databaseRestartRequired = current != null
+                    && !current.database().file().equals(loaded.database().file());
+            if (databaseRestartRequired) {
+                loaded = loaded.withDatabase(new PluginSettings.DatabaseSettings(
+                        current.database().file(),
+                        loaded.database().historyLimit()
+                ));
             }
             settings = loaded;
-            return new ReloadResult(true, databaseChanged, "");
+            return new ReloadResult(true, databaseRestartRequired, "");
         } catch (IOException | InvalidConfigurationException | IllegalArgumentException exception) {
             logger.severe("Failed to reload CloverCheck config: " + exception.getMessage());
             return new ReloadResult(false, false, exception.getMessage());

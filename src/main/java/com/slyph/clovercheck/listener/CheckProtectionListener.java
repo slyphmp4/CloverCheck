@@ -1,6 +1,7 @@
 package com.slyph.clovercheck.listener;
 
-import com.slyph.clovercheck.service.CheckService;
+import com.slyph.clovercheck.config.PluginSettings;
+import com.slyph.clovercheck.service.CheckSessionService;
 import com.slyph.clovercheck.service.MessageService;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
@@ -15,32 +16,38 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerToggleFlightEvent;
+import org.bukkit.event.vehicle.VehicleEnterEvent;
+import org.bukkit.event.vehicle.VehicleExitEvent;
 
 public final class CheckProtectionListener implements Listener {
-    private final CheckService checks;
+    private final CheckSessionService checks;
     private final MessageService messages;
 
-    public CheckProtectionListener(CheckService checks, MessageService messages) {
+    public CheckProtectionListener(CheckSessionService checks, MessageService messages) {
         this.checks = checks;
         this.messages = messages;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
-        if (!checks.freezeEnabled("movement") || !checks.isChecked(event.getPlayer().getUniqueId())) return;
+        if (!freeze(event.getPlayer()).movement()) return;
         Location to = event.getTo();
         if (to == null || samePosition(event.getFrom(), to)) return;
         Location allowed = event.getFrom().clone();
@@ -49,86 +56,110 @@ public final class CheckProtectionListener implements Listener {
         event.setTo(allowed);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onTeleport(PlayerTeleportEvent event) {
-        if (checks.freezeEnabled("teleport") && checks.isChecked(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        if (freeze(event.getPlayer()).teleport()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onFlight(PlayerToggleFlightEvent event) {
+        if (freeze(event.getPlayer()).flight()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInteract(PlayerInteractEvent event) {
-        if (checks.freezeEnabled("interactions") && checks.isChecked(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        PluginSettings.FreezeSettings freeze = freeze(event.getPlayer());
+        if ((event.getClickedBlock() != null && freeze.blockInteract()) || (event.hasItem() && freeze.itemUse())) {
+            event.setCancelled(true);
+        }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInteractEntity(PlayerInteractEntityEvent event) {
-        if (checks.freezeEnabled("interactions") && checks.isChecked(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        if (freeze(event.getPlayer()).entityInteract()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onInteractAtEntity(PlayerInteractAtEntityEvent event) {
+        if (freeze(event.getPlayer()).entityInteract()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onBreak(BlockBreakEvent event) {
-        if (checks.freezeEnabled("interactions") && checks.isChecked(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        if (freeze(event.getPlayer()).blockBreak()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPlace(BlockPlaceEvent event) {
-        if (checks.freezeEnabled("interactions") && checks.isChecked(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        if (freeze(event.getPlayer()).blockPlace()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryClick(InventoryClickEvent event) {
-        if (checks.freezeEnabled("inventory") && event.getWhoClicked() instanceof Player player && checks.isChecked(player.getUniqueId())) event.setCancelled(true);
+        if (event.getWhoClicked() instanceof Player player && freeze(player).inventory()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryDrag(InventoryDragEvent event) {
-        if (checks.freezeEnabled("inventory") && event.getWhoClicked() instanceof Player player && checks.isChecked(player.getUniqueId())) event.setCancelled(true);
+        if (event.getWhoClicked() instanceof Player player && freeze(player).inventory()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryOpen(InventoryOpenEvent event) {
-        if (checks.freezeEnabled("inventory") && event.getPlayer() instanceof Player player && checks.isChecked(player.getUniqueId())) event.setCancelled(true);
+        if (event.getPlayer() instanceof Player player && freeze(player).inventory()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onDrop(PlayerDropItemEvent event) {
-        if (checks.freezeEnabled("item-drop") && checks.isChecked(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        if (freeze(event.getPlayer()).itemDrop()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPickup(EntityPickupItemEvent event) {
-        if (checks.freezeEnabled("item-pickup") && event.getEntity() instanceof Player player && checks.isChecked(player.getUniqueId())) event.setCancelled(true);
+        if (event.getEntity() instanceof Player player && freeze(player).itemPickup()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onSwap(PlayerSwapHandItemsEvent event) {
-        if (checks.freezeEnabled("inventory") && checks.isChecked(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        if (freeze(event.getPlayer()).swapHand()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onHeldItem(PlayerItemHeldEvent event) {
-        if (checks.freezeEnabled("inventory") && checks.isChecked(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        if (freeze(event.getPlayer()).heldSlot()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onDamage(EntityDamageEvent event) {
-        if (checks.freezeEnabled("damage") && event.getEntity() instanceof Player player && checks.isChecked(player.getUniqueId())) event.setCancelled(true);
+        if (event.getEntity() instanceof Player player && freeze(player).damage()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onDamageByEntity(EntityDamageByEntityEvent event) {
-        if (!checks.freezeEnabled("damage")) return;
         Player attacker = attackingPlayer(event.getDamager());
-        if (attacker != null && checks.isChecked(attacker.getUniqueId())) event.setCancelled(true);
+        if (attacker != null && freeze(attacker).attack()) event.setCancelled(true);
+        if (event.getEntity() instanceof Player target && freeze(target).damage()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onHunger(FoodLevelChangeEvent event) {
-        if (checks.freezeEnabled("hunger") && event.getEntity() instanceof Player player && checks.isChecked(player.getUniqueId())) event.setCancelled(true);
+        if (event.getEntity() instanceof Player player && freeze(player).hunger()) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onVehicleEnter(VehicleEnterEvent event) {
+        if (event.getEntered() instanceof Player player && freeze(player).vehicle()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onVehicleExit(VehicleExitEvent event) {
+        if (event.getExited() instanceof Player player && freeze(player).vehicle()) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onCommand(PlayerCommandPreprocessEvent event) {
-        if (!checks.isChecked(event.getPlayer().getUniqueId()) || checks.isCommandAllowed(event.getMessage())) return;
+        PluginSettings.FreezeSettings freeze = freeze(event.getPlayer());
+        if (!freeze.commands() || checks.isCommandAllowed(event.getMessage())) return;
         event.setCancelled(true);
         messages.send(event.getPlayer(), "command-blocked");
     }
@@ -143,6 +174,23 @@ public final class CheckProtectionListener implements Listener {
         checks.handleJoin(event.getPlayer());
     }
 
+    @EventHandler
+    public void onDeath(PlayerDeathEvent event) {
+        checks.handleCheckedDeath(event.getEntity());
+    }
+
+    @EventHandler
+    public void onRespawn(PlayerRespawnEvent event) {
+        checks.handleRespawn(event.getPlayer());
+    }
+
+    private PluginSettings.FreezeSettings freeze(Player player) {
+        if (!checks.isChecked(player.getUniqueId())) {
+            return DISABLED;
+        }
+        return checks.freezeSettings();
+    }
+
     private static boolean samePosition(Location first, Location second) {
         return first.getWorld() == second.getWorld()
                 && Double.compare(first.getX(), second.getX()) == 0
@@ -155,4 +203,9 @@ public final class CheckProtectionListener implements Listener {
         if (damager instanceof Projectile projectile && projectile.getShooter() instanceof Player player) return player;
         return null;
     }
+
+    private static final PluginSettings.FreezeSettings DISABLED = new PluginSettings.FreezeSettings(
+            false, false, false, false, false, false, false, false, false,
+            false, false, false, false, false, false, false, false, false
+    );
 }

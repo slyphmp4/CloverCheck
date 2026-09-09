@@ -63,6 +63,9 @@ public record PluginSettings(
         if (defaultReason.isBlank() || defaultReason.length() > MAX_REASON_LENGTH) {
             throw new IllegalArgumentException("check.default-reason must contain 1-256 characters");
         }
+        if (contact.isBlank()) {
+            throw new IllegalArgumentException("check.contact must not be blank");
+        }
         if (commandWhitelist.stream().anyMatch(String::isBlank)) {
             throw new IllegalArgumentException("commands.whitelist contains a blank command");
         }
@@ -76,26 +79,9 @@ public record PluginSettings(
 
     public PluginSettings withDatabase(DatabaseSettings databaseSettings) {
         return new PluginSettings(
-                checkDuration,
-                reminderIntervalSeconds,
-                oneActivePerModerator,
-                defaultReason,
-                contact,
-                commandWhitelist,
-                freeze,
-                quitPolicy,
-                timeoutPolicy,
-                confess,
-                staff,
-                bossBar,
-                title,
-                actionBar,
-                sounds,
-                teleport,
-                databaseSettings,
-                actions,
-                debug,
-                locale
+                checkDuration, reminderIntervalSeconds, oneActivePerModerator, defaultReason, contact,
+                commandWhitelist, freeze, quitPolicy, timeoutPolicy, confess, staff, bossBar, title,
+                actionBar, sounds, teleport, databaseSettings, actions, debug, locale
         );
     }
 
@@ -111,6 +97,7 @@ public record PluginSettings(
             boolean blockPlace,
             boolean blockInteract,
             boolean entityInteract,
+            boolean itemUse,
             boolean attack,
             boolean damage,
             boolean hunger,
@@ -168,12 +155,16 @@ public record PluginSettings(
         public SoundSettings {
             Objects.requireNonNull(startKey, "startKey");
             Objects.requireNonNull(completeKey, "completeKey");
-            if (startKey.isBlank() || completeKey.isBlank()) {
-                throw new IllegalArgumentException("ui.sounds keys must not be blank");
+            if (!validKey(startKey) || !validKey(completeKey)) {
+                throw new IllegalArgumentException("ui.sounds keys must be namespaced Minecraft keys");
             }
             if (!Float.isFinite(volume) || volume < 0.0F || !Float.isFinite(pitch) || pitch <= 0.0F) {
                 throw new IllegalArgumentException("ui.sounds volume/pitch are invalid");
             }
+        }
+
+        private static boolean validKey(String value) {
+            return value.matches("[a-z0-9._-]+:[a-z0-9/._-]+");
         }
     }
 

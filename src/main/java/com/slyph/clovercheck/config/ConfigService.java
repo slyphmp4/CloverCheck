@@ -69,17 +69,55 @@ public final class ConfigService {
     private PluginSettings readSettings() throws IOException, InvalidConfigurationException {
         YamlConfiguration config = new YamlConfiguration();
         config.load(file);
+        Set<String> whitelist = readWhitelist(config);
+        PluginSettings.FreezeSettings freeze = new PluginSettings.FreezeSettings(
+                requiredBoolean(config, "freeze.movement"), requiredBoolean(config, "freeze.flight"),
+                requiredBoolean(config, "freeze.teleport"), requiredBoolean(config, "freeze.block-break"),
+                requiredBoolean(config, "freeze.block-place"), requiredBoolean(config, "freeze.block-interact"),
+                requiredBoolean(config, "freeze.entity-interact"), requiredBoolean(config, "freeze.item-use"),
+                requiredBoolean(config, "freeze.attack"), requiredBoolean(config, "freeze.damage"),
+                requiredBoolean(config, "freeze.hunger"), requiredBoolean(config, "freeze.item-drop"),
+                requiredBoolean(config, "freeze.item-pickup"), requiredBoolean(config, "freeze.inventory"),
+                requiredBoolean(config, "freeze.held-slot"), requiredBoolean(config, "freeze.swap-hand"),
+                requiredBoolean(config, "freeze.vehicle"), requiredBoolean(config, "freeze.commands")
+        );
+        Map<CheckResult, List<String>> actions = new EnumMap<>(CheckResult.class);
+        for (CheckResult result : CheckResult.values()) {
+            String key = "actions." + result.name().toLowerCase(Locale.ROOT).replace('_', '-');
+            if (config.contains(key) && !config.isList(key)) {
+                throw new IllegalArgumentException(key + " must be a YAML list");
+            }
+            actions.put(result, List.copyOf(config.getStringList(key)));
+        }
+        return new PluginSettings(
+                Duration.ofSeconds(requiredInt(config, "check.duration-seconds")),
+                requiredInt(config, "check.reminder-interval-seconds"),
+                requiredBoolean(config, "check.one-active-per-moderator"),
+                requiredString(config, "check.default-reason"),
+                requiredString(config, "check.contact"),
+                whitelist,
+                freeze,
+                enumValue(config, "quit.policy", QuitPolicy.class),
+                enumValue(config, "timeout.policy", TimeoutPolicy.class),
+                new PluginSettings.ConfessSettings(requiredBoolean(config, "confess.enabled"), requiredInt(config, "confess.confirmation-seconds")),
+                new PluginSettings.StaffSettings(requiredBoolean(config, "staff.notifications")),
+                new PluginSettings.BossBarSettings(requiredBoolean(config, "ui.bossbar.enabled"), requiredString(config, "ui.bossbar.color"), requiredString(config, "ui.bossbar.overlay")),
+                new PluginSettings.TitleSettings(requiredBoolean(config, "ui.title.enabled"), requiredInt(config, "ui.title.fade-in-ticks"), requiredInt(config, "ui.title.stay-ticks"), requiredInt(config, "ui.title.fade-out-ticks")),
+                new PluginSettings.ActionBarSettings(requiredBoolean(config, "ui.actionbar.enabled")),
+                new PluginSettings.SoundSettings(requiredBoolean(config, "ui.sounds.enabled"), requiredString(config, "ui.sounds.start"), requiredString(config, "ui.sounds.complete"), (float) requiredDouble(config, "ui.sounds.volume"), (float) requiredDouble(config, "ui.sounds.pitch")),
+                new PluginSettings.TeleportSettings(requiredBoolean(config, "moderator.teleport-to-player-enabled")),
+                new PluginSettings.DatabaseSettings(requiredString(config, "database.file"), requiredInt(config, "database.history-limit")),
+                actions,
+                requiredBoolean(config, "debug"),
+                requiredString(config, "locale")
+        );
+    }
 
-        int durationSeconds = requiredInt(config, "check.duration-seconds");
-        int reminderSeconds = requiredInt(config, "check.reminder-interval-seconds");
-        boolean onePerModerator = requiredBoolean(config, "check.one-active-per-moderator");
-        String defaultReason = requiredString(config, "check.default-reason");
-        String contact = requiredString(config, "check.contact");
-
-        Set<String> whitelist = new LinkedHashSet<>();
+    private static Set<String> readWhitelist(YamlConfiguration config) {
         if (!config.isList("commands.whitelist")) {
             throw new IllegalArgumentException("commands.whitelist must be a YAML list");
         }
+        Set<String> whitelist = new LinkedHashSet<>();
         for (String raw : config.getStringList("commands.whitelist")) {
             String root = CommandNormalizer.root(raw);
             if (root.isBlank()) {
@@ -89,127 +127,28 @@ public final class ConfigService {
         }
         whitelist.add("check");
         whitelist.add("clovercheck");
-
-        PluginSettings.FreezeSettings freeze = new PluginSettings.FreezeSettings(
-                requiredBoolean(config, "freeze.movement"),
-                requiredBoolean(config, "freeze.flight"),
-                requiredBoolean(config, "freeze.teleport"),
-                requiredBoolean(config, "freeze.block-break"),
-                requiredBoolean(config, "freeze.block-place"),
-                requiredBoolean(config, "freeze.block-interact"),
-                requiredBoolean(config, "freeze.entity-interact"),
-                requiredBoolean(config, "freeze.attack"),
-                requiredBoolean(config, "freeze.damage"),
-                requiredBoolean(config, "freeze.hunger"),
-                requiredBoolean(config, "freeze.item-drop"),
-                requiredBoolean(config, "freeze.item-pickup"),
-                requiredBoolean(config, "freeze.inventory"),
-                requiredBoolean(config, "freeze.held-slot"),
-                requiredBoolean(config, "freeze.swap-hand"),
-                requiredBoolean(config, "freeze.vehicle"),
-                requiredBoolean(config, "freeze.commands")
-        );
-
-        QuitPolicy quitPolicy = enumValue(config, "quit.policy", QuitPolicy.class);
-        TimeoutPolicy timeoutPolicy = enumValue(config, "timeout.policy", TimeoutPolicy.class);
-        PluginSettings.ConfessSettings confess = new PluginSettings.ConfessSettings(
-                requiredBoolean(config, "confess.enabled"),
-                requiredInt(config, "confess.confirmation-seconds")
-        );
-        PluginSettings.StaffSettings staff = new PluginSettings.StaffSettings(
-                requiredBoolean(config, "staff.notifications")
-        );
-        PluginSettings.BossBarSettings bossBar = new PluginSettings.BossBarSettings(
-                requiredBoolean(config, "ui.bossbar.enabled"),
-                requiredString(config, "ui.bossbar.color"),
-                requiredString(config, "ui.bossbar.overlay")
-        );
-        PluginSettings.TitleSettings title = new PluginSettings.TitleSettings(
-                requiredBoolean(config, "ui.title.enabled"),
-                requiredInt(config, "ui.title.fade-in-ticks"),
-                requiredInt(config, "ui.title.stay-ticks"),
-                requiredInt(config, "ui.title.fade-out-ticks")
-        );
-        PluginSettings.ActionBarSettings actionBar = new PluginSettings.ActionBarSettings(
-                requiredBoolean(config, "ui.actionbar.enabled")
-        );
-        PluginSettings.SoundSettings sounds = new PluginSettings.SoundSettings(
-                requiredBoolean(config, "ui.sounds.enabled"),
-                requiredString(config, "ui.sounds.start"),
-                requiredString(config, "ui.sounds.complete"),
-                (float) requiredDouble(config, "ui.sounds.volume"),
-                (float) requiredDouble(config, "ui.sounds.pitch")
-        );
-        PluginSettings.TeleportSettings teleport = new PluginSettings.TeleportSettings(
-                requiredBoolean(config, "moderator.teleport-to-player-enabled")
-        );
-        PluginSettings.DatabaseSettings database = new PluginSettings.DatabaseSettings(
-                requiredString(config, "database.file"),
-                requiredInt(config, "database.history-limit")
-        );
-
-        Map<CheckResult, List<String>> actions = new EnumMap<>(CheckResult.class);
-        for (CheckResult result : CheckResult.values()) {
-            String key = "actions." + result.name().toLowerCase(Locale.ROOT).replace('_', '-');
-            if (config.contains(key) && !config.isList(key)) {
-                throw new IllegalArgumentException(key + " must be a YAML list");
-            }
-            actions.put(result, List.copyOf(config.getStringList(key)));
-        }
-
-        return new PluginSettings(
-                Duration.ofSeconds(durationSeconds),
-                reminderSeconds,
-                onePerModerator,
-                defaultReason,
-                contact,
-                whitelist,
-                freeze,
-                quitPolicy,
-                timeoutPolicy,
-                confess,
-                staff,
-                bossBar,
-                title,
-                actionBar,
-                sounds,
-                teleport,
-                database,
-                actions,
-                requiredBoolean(config, "debug"),
-                requiredString(config, "locale")
-        );
+        return whitelist;
     }
 
     private static int requiredInt(YamlConfiguration config, String key) {
-        if (!config.isInt(key)) {
-            throw new IllegalArgumentException(key + " must be an integer");
-        }
+        if (!config.isInt(key)) throw new IllegalArgumentException(key + " must be an integer");
         return config.getInt(key);
     }
 
     private static double requiredDouble(YamlConfiguration config, String key) {
-        if (!config.isDouble(key) && !config.isInt(key)) {
-            throw new IllegalArgumentException(key + " must be a number");
-        }
+        if (!config.isDouble(key) && !config.isInt(key)) throw new IllegalArgumentException(key + " must be a number");
         return config.getDouble(key);
     }
 
     private static boolean requiredBoolean(YamlConfiguration config, String key) {
-        if (!config.isBoolean(key)) {
-            throw new IllegalArgumentException(key + " must be true or false");
-        }
+        if (!config.isBoolean(key)) throw new IllegalArgumentException(key + " must be true or false");
         return config.getBoolean(key);
     }
 
     private static String requiredString(YamlConfiguration config, String key) {
-        if (!config.isString(key)) {
-            throw new IllegalArgumentException(key + " must be a string");
-        }
+        if (!config.isString(key)) throw new IllegalArgumentException(key + " must be a string");
         String value = config.getString(key, "").trim();
-        if (value.isBlank()) {
-            throw new IllegalArgumentException(key + " must not be blank");
-        }
+        if (value.isBlank()) throw new IllegalArgumentException(key + " must not be blank");
         return value;
     }
 

@@ -1,0 +1,26 @@
+version: 1
+enabled: true
+max-message-length: 256
+
+formats:
+  checked: "<#FFD166>[Проверка] <#E9C66E>Проверяемый <white><sender> <dark_gray>» <white><message>"
+  moderator: "<#FFD166>[Проверка] <#6EE9E5>Модератор <white><sender> <dark_gray>» <white><message>"
+
+messages:
+  peer-offline:
+    - "&7"
+    - "<#E9C66E>⚠  <#C2A65E>|  <#E9C66E>Сообщение осталось в чате проверки, но <white><peer> <#E9C66E>сейчас не в сети"
+    - "&7"
+  ambiguous:
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>У вас несколько активных проверок, поэтому сообщение не было отправлено"
+    - "<#FF5A5A>       Завершите лишние проверки перед использованием временного чата"
+    - "&7"
+  session-changed:
+    - "&7"
+    - "<#E9C66E>⚠  <#C2A65E>|  <#E9C66E>Состояние проверки изменилось до отправки сообщения. Отправьте его ещё раз"
+    - "&7"
+  message-too-long:
+    - "&7"
+    - "<#C72B2B>❌  <#FF9089>|  <#FF5A5A>Сообщение слишком длинное. Максимум: <#FFB8B8><maximum> <#FF5A5A>символов"
+    - "&7"

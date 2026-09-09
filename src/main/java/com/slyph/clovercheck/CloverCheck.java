@@ -1,7 +1,9 @@
 package com.slyph.clovercheck;
 
+import com.slyph.clovercheck.chat.CheckChatService;
 import com.slyph.clovercheck.command.CheckCommand;
 import com.slyph.clovercheck.config.ConfigService;
+import com.slyph.clovercheck.listener.CheckChatListener;
 import com.slyph.clovercheck.listener.CheckProtectionListener;
 import com.slyph.clovercheck.service.ActionService;
 import com.slyph.clovercheck.service.AuditService;
@@ -28,11 +30,13 @@ public final class CloverCheck extends JavaPlugin {
     private MessageService messageService;
     private CheckRepository repository;
     private CheckSessionService checkSessions;
+    private CheckChatService checkChatService;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         saveResource("messages.yml", false);
+        saveResource("chat.yml", false);
 
         configService = new ConfigService(this);
         messageService = new MessageService(this);
@@ -71,8 +75,9 @@ public final class CloverCheck extends JavaPlugin {
 
     public ReloadOutcome reloadPlugin() {
         boolean messagesReloaded = messageService.reload();
+        boolean chatReloaded = checkChatService == null || checkChatService.reload();
         ConfigService.ReloadResult configReloaded = configService.reload();
-        boolean success = messagesReloaded && configReloaded.success();
+        boolean success = messagesReloaded && chatReloaded && configReloaded.success();
         if (success && checkSessions != null) {
             checkSessions.onSettingsReload();
         }
@@ -85,9 +90,16 @@ public final class CloverCheck extends JavaPlugin {
         ActionService actions = new ActionService(configService, audit, getLogger());
         CheckUiService ui = new CheckUiService(configService, messageService, getLogger());
         checkSessions = new CheckSessionService(this, configService, messageService, repository, audit, actions, ui, restored);
+        checkChatService = new CheckChatService(this, messageService, checkSessions);
+        if (!checkChatService.reload()) {
+            getLogger().severe("CloverCheck startup stopped because chat.yml is invalid.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
         checkSessions.resumeOnlineSessions();
         getServer().getPluginManager().registerEvents(new CheckProtectionListener(checkSessions, messageService), this);
+        getServer().getPluginManager().registerEvents(new CheckChatListener(checkChatService), this);
 
         PluginCommand command = getCommand("check");
         if (command == null) {

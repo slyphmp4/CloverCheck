@@ -90,6 +90,10 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
             messages.send(sender, "usage-finish");
             return true;
         }
+        if (isSelfTarget(sender, args[1])) {
+            messages.send(sender, "cannot-finish-yourself");
+            return true;
+        }
         checks.staffComplete(sender, args[1], result, join(args, 2));
         return true;
     }
@@ -98,6 +102,10 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
         if (!permission(sender, "clovercheck.cancel")) return true;
         if (args.length < 2) {
             messages.send(sender, "usage-cancel");
+            return true;
+        }
+        if (isSelfTarget(sender, args[1])) {
+            messages.send(sender, "cannot-finish-yourself");
             return true;
         }
         checks.staffComplete(sender, args[1], CheckResult.CANCELLED, join(args, 2));
@@ -191,6 +199,10 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
         return false;
     }
 
+    private static boolean isSelfTarget(CommandSender sender, String playerName) {
+        return sender instanceof Player player && player.getName().equalsIgnoreCase(playerName);
+    }
+
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
@@ -213,13 +225,23 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
         }
         String sub = args[0].toLowerCase(Locale.ROOT);
         if (args.length == 2) {
-            if (sub.equals("confess") && sender instanceof Player player && checks.isChecked(player.getUniqueId())) {
+            if (sub.equals("confess") && sender instanceof Player player
+                    && checks.isChecked(player.getUniqueId()) && sender.hasPermission("clovercheck.confess")) {
                 return filter(List.of("confirm"), args[1]);
             }
             if (sub.equals("start") && sender.hasPermission("clovercheck.start")) {
                 return filter(startablePlayers(sender), args[1]);
             }
-            if (List.of("clean", "cheats", "refuse", "cancel", "status", "tp").contains(sub)) {
+            if (List.of("clean", "cheats", "refuse").contains(sub) && sender.hasPermission("clovercheck.finish")) {
+                return filter(activeTargets(sender), args[1]);
+            }
+            if (sub.equals("cancel") && sender.hasPermission("clovercheck.cancel")) {
+                return filter(activeTargets(sender), args[1]);
+            }
+            if (sub.equals("status") && sender.hasPermission("clovercheck.status")) {
+                return filter(checks.activeSessions().stream().map(session -> session.playerName()).toList(), args[1]);
+            }
+            if (sub.equals("tp") && sender.hasPermission("clovercheck.teleport")) {
                 return filter(checks.activeSessions().stream().map(session -> session.playerName()).toList(), args[1]);
             }
             if (sub.equals("history") && sender.hasPermission("clovercheck.history")) {
@@ -238,6 +260,13 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
                 .filter(player -> !(sender instanceof Player self) || !self.getUniqueId().equals(player.getUniqueId()))
                 .filter(player -> !player.hasPermission("clovercheck.bypass") || sender.hasPermission("clovercheck.override-bypass"))
                 .map(Player::getName)
+                .toList();
+    }
+
+    private List<String> activeTargets(CommandSender sender) {
+        return checks.activeSessions().stream()
+                .map(session -> session.playerName())
+                .filter(name -> !isSelfTarget(sender, name))
                 .toList();
     }
 

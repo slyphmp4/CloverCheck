@@ -91,7 +91,7 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if (isSelfTarget(sender, args[1])) {
-            messages.send(sender, "cannot-finish-yourself");
+            messages.send(sender, "cannot-check-yourself");
             return true;
         }
         checks.staffComplete(sender, args[1], result, join(args, 2));
@@ -105,7 +105,7 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if (isSelfTarget(sender, args[1])) {
-            messages.send(sender, "cannot-finish-yourself");
+            messages.send(sender, "cannot-check-yourself");
             return true;
         }
         checks.staffComplete(sender, args[1], CheckResult.CANCELLED, join(args, 2));

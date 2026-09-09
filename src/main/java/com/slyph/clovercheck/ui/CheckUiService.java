@@ -15,7 +15,9 @@ import org.bukkit.potion.PotionEffectType;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -29,12 +31,14 @@ public final class CheckUiService {
     private final Logger logger;
     private final Map<UUID, BossBar> bossBars = new HashMap<>();
     private final Map<UUID, BlindnessSnapshot> blindnessBeforeCheck = new HashMap<>();
+    private final Set<UUID> blindnessVerified = new HashSet<>();
     private boolean bossBarSupported = true;
     private boolean bossBarFailureLogged;
     private boolean titleSupported = true;
     private boolean titleFailureLogged;
     private boolean blindnessSupported = true;
     private boolean blindnessFailureLogged;
+    private boolean blindnessApplicationFailureLogged;
 
     public CheckUiService(ConfigService config, MessageService messages, Logger logger) {
         this.config = config;
@@ -98,6 +102,7 @@ public final class CheckUiService {
         }
         bossBars.clear();
         blindnessBeforeCheck.clear();
+        blindnessVerified.clear();
     }
 
     private void showOrUpdateBossBar(Player player, Map<String, String> placeholders, float progress) {
@@ -198,9 +203,10 @@ public final class CheckUiService {
             );
             PotionEffect current = player.getPotionEffect(PotionEffectType.BLINDNESS);
             if (current != null && (current.isInfinite() || current.getDuration() > CHECK_BLINDNESS_REFRESH_THRESHOLD_TICKS)) {
+                markBlindnessVerified(player, current);
                 return;
             }
-            player.addPotionEffect(new PotionEffect(
+            boolean applied = player.addPotionEffect(new PotionEffect(
                     PotionEffectType.BLINDNESS,
                     CHECK_BLINDNESS_DURATION_TICKS,
                     0,
@@ -208,12 +214,40 @@ public final class CheckUiService {
                     false,
                     false
             ));
+            PotionEffect verified = player.getPotionEffect(PotionEffectType.BLINDNESS);
+            if (!applied || verified == null) {
+                warnBlindnessApplicationFailure(player, applied);
+                return;
+            }
+            markBlindnessVerified(player, verified);
         } catch (RuntimeException exception) {
             disableBlindness(exception);
         }
     }
 
+    private void markBlindnessVerified(Player player, PotionEffect effect) {
+        if (config.settings().debug() && blindnessVerified.add(player.getUniqueId())) {
+            logger.info(
+                    "[DEBUG] blindness verified player=" + player.getName()
+                            + " duration=" + effect.getDuration()
+                            + " amplifier=" + effect.getAmplifier()
+            );
+        }
+    }
+
+    private void warnBlindnessApplicationFailure(Player player, boolean applied) {
+        if (blindnessApplicationFailureLogged) {
+            return;
+        }
+        blindnessApplicationFailureLogged = true;
+        logger.warning(
+                "PotionEffect API did not retain CloverCheck Blindness for player " + player.getName()
+                        + " (addPotionEffect returned " + applied + ", getPotionEffect returned null)."
+        );
+    }
+
     private void restoreBlindness(Player player) {
+        blindnessVerified.remove(player.getUniqueId());
         BlindnessSnapshot snapshot = blindnessBeforeCheck.remove(player.getUniqueId());
         if (snapshot == null) {
             return;

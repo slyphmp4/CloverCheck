@@ -112,12 +112,7 @@ public final class CloverCheck extends JavaPlugin {
         }
 
         checkSessions.resumeOnlineSessions();
-        CheckProtectionListener protectionListener = new CheckProtectionListener(
-                checkSessions,
-                messageService,
-                configService,
-                getLogger()
-        );
+        CheckProtectionListener protectionListener = new CheckProtectionListener(checkSessions, messageService);
         getServer().getPluginManager().registerEvents(protectionListener, this);
         if (!verifyProtectionRegistration(protectionListener)) {
             getLogger().severe("CloverCheck protection listener registration is incomplete. Disabling plugin to avoid running without player protection.");

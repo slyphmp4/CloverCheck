@@ -5,13 +5,17 @@ CloverCheck is a manual cheat-check workflow plugin for Minecraft/Paper 26.2. It
 ## Requirements
 
 - Minecraft/Paper 26.2
-- Cardboard 26.2.18 or newer when running on Cardboard
+- Cardboard 26.2.19 or newer when running on Cardboard
 - Java 25
 - Gradle 9.7.1 via the included wrapper
 
-Gameplay protection uses public Bukkit/Paper and Adventure APIs. Cardboard 26.2.18 includes the API-parity and cancellation fixes CloverCheck relies on, so CloverCheck does not carry Cardboard-specific gameplay, BossBar, potion-effect, teleport, or per-tick isolation fallbacks.
+Gameplay protection uses public Bukkit/Paper event APIs. Checked players are held at a fixed XYZ position while still being able to rotate their camera, and protected actions are blocked through cancellable Bukkit events.
 
-The isolated check-chat path is the one intentional compatibility exception: on Fabric/Cardboard, CloverCheck uses a small reflective bridge for the legacy Bukkit chat event because that runtime does not currently expose the same `AsyncChatEvent` path used on Paper. Cardboard compatibility is not claimed as runtime-tested until the plugin is exercised on an actual Cardboard 26.2.18+ server.
+Cardboard 26.2.19 includes the event-cancellation and API-parity fixes CloverCheck relies on. Two small public-API compatibility paths are intentionally retained for the current Cardboard runtime: client-side Blindness is refreshed through `Player#sendPotionEffectChange(...)`, and the Adventure BossBar is recreated on each one-second UI refresh because live mutation of the existing Adventure BossBar is not yet reliably propagated by Cardboard. These paths do not use NMS, CraftBukkit internals, command fallbacks, or per-tick isolation.
+
+The isolated check-chat path is the other intentional compatibility exception: on Fabric/Cardboard, CloverCheck uses a small reflective bridge for the legacy Bukkit chat event because that runtime does not currently expose the same `AsyncChatEvent` path used on Paper.
+
+The current protection, isolated chat, fixed-position freeze, Blindness, Title/Subtitle, ActionBar, inventory restrictions, interaction restrictions, and one-second BossBar countdown have been smoke-tested on a live Cardboard 26.2 server runtime.
 
 ## Commands
 

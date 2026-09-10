@@ -60,7 +60,9 @@ import org.bukkit.event.player.PlayerVelocityEvent;
 import org.bukkit.event.vehicle.VehicleEnterEvent;
 import org.bukkit.event.vehicle.VehicleExitEvent;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -71,6 +73,7 @@ public final class CheckProtectionListener implements Listener {
     private final ConfigService config;
     private final Logger logger;
     private final Set<String> debugEvents = new HashSet<>();
+    private final Map<UUID, Location> freezeAnchors = new HashMap<>();
 
     public CheckProtectionListener(
             CheckSessionService checks,
@@ -86,11 +89,17 @@ public final class CheckProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
-        if (!freeze(event.getPlayer()).movement()) return;
-        debug(event.getPlayer(), "PlayerMoveEvent");
+        Player player = event.getPlayer();
+        if (!freeze(player).movement()) return;
+        debug(player, "PlayerMoveEvent");
+        if (player.isSprinting()) {
+            player.setSprinting(false);
+        }
         Location to = event.getTo();
-        if (to == null || samePosition(event.getFrom(), to)) return;
-        Location allowed = event.getFrom().clone();
+        if (to == null) return;
+        Location anchor = freezeAnchors.computeIfAbsent(player.getUniqueId(), ignored -> event.getFrom().clone());
+        if (samePosition(anchor, to)) return;
+        Location allowed = anchor.clone();
         allowed.setYaw(to.getYaw());
         allowed.setPitch(to.getPitch());
         event.setTo(allowed);
@@ -108,7 +117,13 @@ public final class CheckProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onSprint(PlayerToggleSprintEvent event) {
-        if (freeze(event.getPlayer()).movement()) event.setCancelled(true);
+        Player player = event.getPlayer();
+        if (!freeze(player).movement()) return;
+        debug(player, "PlayerToggleSprintEvent");
+        event.setCancelled(true);
+        if (player.isSprinting()) {
+            player.setSprinting(false);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -118,10 +133,13 @@ public final class CheckProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onTeleport(PlayerTeleportEvent event) {
-        PluginSettings.FreezeSettings freeze = freeze(event.getPlayer());
+        Player player = event.getPlayer();
+        PluginSettings.FreezeSettings freeze = freeze(player);
         if (!freeze.teleport()) return;
-        debug(event.getPlayer(), "PlayerTeleportEvent");
+        debug(player, "PlayerTeleportEvent");
         Location to = event.getTo();
+        Location anchor = freezeAnchors.get(player.getUniqueId());
+        if (to != null && anchor != null && samePosition(anchor, to)) return;
         if (to != null && samePosition(event.getFrom(), to)) return;
         event.setCancelled(true);
     }
@@ -343,26 +361,31 @@ public final class CheckProtectionListener implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
+        freezeAnchors.remove(event.getPlayer().getUniqueId());
         checks.handleQuit(event.getPlayer());
     }
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
+        freezeAnchors.remove(event.getPlayer().getUniqueId());
         checks.handleJoin(event.getPlayer());
     }
 
     @EventHandler
     public void onDeath(PlayerDeathEvent event) {
+        freezeAnchors.remove(event.getEntity().getUniqueId());
         checks.handleCheckedDeath(event.getEntity());
     }
 
     @EventHandler
     public void onRespawn(PlayerRespawnEvent event) {
+        freezeAnchors.remove(event.getPlayer().getUniqueId());
         checks.handleRespawn(event.getPlayer());
     }
 
     private PluginSettings.FreezeSettings freeze(Player player) {
         if (!checks.isChecked(player.getUniqueId())) {
+            freezeAnchors.remove(player.getUniqueId());
             return DISABLED;
         }
         return checks.freezeSettings();

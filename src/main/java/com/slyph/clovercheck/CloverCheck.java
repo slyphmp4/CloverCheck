@@ -93,12 +93,14 @@ public final class CloverCheck extends JavaPlugin {
     private void bootstrap(List<CheckSessionSnapshot> restored) {
         if (!isEnabled()) return;
         boolean fabricRuntime = isFabricRuntime();
-        getLogger().info(
-                "Runtime: server=" + Bukkit.getName()
-                        + ", version=" + Bukkit.getVersion()
-                        + ", bukkit=" + Bukkit.getBukkitVersion()
-                        + ", fabric=" + fabricRuntime
-        );
+        if (configService.settings().debug()) {
+            getLogger().info(
+                    "Runtime: server=" + Bukkit.getName()
+                            + ", version=" + Bukkit.getVersion()
+                            + ", bukkit=" + Bukkit.getBukkitVersion()
+                            + ", fabric=" + fabricRuntime
+            );
+        }
 
         AuditService audit = new AuditService(repository, getLogger());
         ActionService actions = new ActionService(configService, audit, getLogger());

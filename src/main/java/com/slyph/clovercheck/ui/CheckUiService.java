@@ -16,14 +16,13 @@ import org.bukkit.potion.PotionEffectType;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 public final class CheckUiService {
     private static final int CHECK_BLINDNESS_DURATION_TICKS = 80;
+    private static final int CHECK_BLINDNESS_REFRESH_THRESHOLD_TICKS = 40;
     private static final int PERSISTENT_TITLE_STAY_TICKS = 40;
 
     private final ConfigService config;
@@ -32,14 +31,14 @@ public final class CheckUiService {
     private final boolean cardboardRuntime;
     private final Map<UUID, BossBar> bossBars = new HashMap<>();
     private final Map<UUID, BlindnessSnapshot> blindnessBeforeCheck = new HashMap<>();
-    private final Set<UUID> blindnessVerified = new HashSet<>();
     private boolean bossBarSupported = true;
     private boolean bossBarFailureLogged;
     private boolean titleSupported = true;
     private boolean titleFailureLogged;
-    private boolean blindnessVisualSupported = true;
+    private boolean blindnessSupported = true;
     private boolean blindnessFailureLogged;
     private boolean blindnessSnapshotFailureLogged;
+    private boolean blindnessApplicationFailureLogged;
 
     public CheckUiService(ConfigService config, MessageService messages, Logger logger) {
         this.config = config;
@@ -104,7 +103,6 @@ public final class CheckUiService {
         }
         bossBars.clear();
         blindnessBeforeCheck.clear();
-        blindnessVerified.clear();
     }
 
     private void showOrUpdateBossBar(Player player, Map<String, String> placeholders, float progress) {
@@ -220,25 +218,38 @@ public final class CheckUiService {
             restoreBlindness(player);
             return;
         }
-        if (!blindnessVisualSupported) {
+        if (!blindnessSupported) {
             return;
         }
-        blindnessBeforeCheck.computeIfAbsent(
-                player.getUniqueId(),
-                ignored -> captureBlindness(player)
-        );
-        PotionEffect effect = new PotionEffect(
-                PotionEffectType.BLINDNESS,
-                CHECK_BLINDNESS_DURATION_TICKS,
-                0,
-                false,
-                false,
-                false
-        );
+        if (cardboardRuntime) {
+            ensureCardboardBlindness(player);
+            return;
+        }
+        ensureServerBlindness(player);
+    }
+
+    private void ensureCardboardBlindness(Player player) {
+        blindnessBeforeCheck.computeIfAbsent(player.getUniqueId(), ignored -> captureBlindness(player));
         try {
-            player.sendPotionEffectChange(player, effect);
-            markBlindnessVerified(player, effect);
+            player.sendPotionEffectChange(player, checkBlindness());
         } catch (RuntimeException | LinkageError exception) {
+            disableBlindness(exception);
+        }
+    }
+
+    private void ensureServerBlindness(Player player) {
+        try {
+            blindnessBeforeCheck.computeIfAbsent(player.getUniqueId(), ignored -> captureBlindness(player));
+            PotionEffect current = player.getPotionEffect(PotionEffectType.BLINDNESS);
+            if (current != null && (current.isInfinite() || current.getDuration() > CHECK_BLINDNESS_REFRESH_THRESHOLD_TICKS)) {
+                return;
+            }
+            boolean applied = player.addPotionEffect(checkBlindness());
+            if (!applied && !blindnessApplicationFailureLogged) {
+                blindnessApplicationFailureLogged = true;
+                logger.warning("CloverCheck could not apply Blindness through the server PotionEffect API.");
+            }
+        } catch (RuntimeException exception) {
             disableBlindness(exception);
         }
     }
@@ -255,7 +266,7 @@ public final class CheckUiService {
             if (!blindnessSnapshotFailureLogged) {
                 blindnessSnapshotFailureLogged = true;
                 logger.warning(
-                        "Could not read the player's existing Blindness effect; CloverCheck will use client-side Blindness without modifying server potion state ("
+                        "Could not read the player's existing Blindness effect; CloverCheck will continue without exact Blindness restoration ("
                                 + exception.getClass().getSimpleName() + ": " + safeMessage(exception) + ")"
                 );
             }
@@ -263,46 +274,70 @@ public final class CheckUiService {
         }
     }
 
-    private void markBlindnessVerified(Player player, PotionEffect effect) {
-        if (config.settings().debug() && blindnessVerified.add(player.getUniqueId())) {
-            logger.info(
-                    "[DEBUG] client blindness sent player=" + player.getName()
-                            + " duration=" + effect.getDuration()
-                            + " amplifier=" + effect.getAmplifier()
-            );
-        }
+    private PotionEffect checkBlindness() {
+        return new PotionEffect(
+                PotionEffectType.BLINDNESS,
+                CHECK_BLINDNESS_DURATION_TICKS,
+                0,
+                false,
+                false,
+                false
+        );
     }
 
     private void restoreBlindness(Player player) {
-        blindnessVerified.remove(player.getUniqueId());
         BlindnessSnapshot snapshot = blindnessBeforeCheck.remove(player.getUniqueId());
-        if (snapshot == null || !blindnessVisualSupported) {
+        if (snapshot == null || !blindnessSupported) {
             return;
         }
-        if (!snapshot.capturedSuccessfully()) {
+        if (cardboardRuntime) {
+            restoreCardboardBlindness(player, snapshot);
             return;
         }
+        restoreServerBlindness(player, snapshot);
+    }
+
+    private void restoreCardboardBlindness(Player player, BlindnessSnapshot snapshot) {
         try {
             player.sendPotionEffectChangeRemove(player, PotionEffectType.BLINDNESS);
-            PotionEffect original = snapshot.effect();
-            if (original == null) {
+            if (!snapshot.capturedSuccessfully() || snapshot.effect() == null) {
                 return;
             }
-            int remaining = remainingDuration(original, snapshot.capturedAt(), Instant.now());
+            int remaining = remainingDuration(snapshot.effect(), snapshot.capturedAt(), Instant.now());
             if (remaining == 0) {
                 return;
             }
-            player.sendPotionEffectChange(player, new PotionEffect(
-                    PotionEffectType.BLINDNESS,
-                    remaining,
-                    original.getAmplifier(),
-                    original.isAmbient(),
-                    original.hasParticles(),
-                    original.hasIcon()
-            ));
+            player.sendPotionEffectChange(player, copyWithDuration(snapshot.effect(), remaining));
         } catch (RuntimeException | LinkageError exception) {
             disableBlindness(exception);
         }
+    }
+
+    private void restoreServerBlindness(Player player, BlindnessSnapshot snapshot) {
+        try {
+            player.removePotionEffect(PotionEffectType.BLINDNESS);
+            if (!snapshot.capturedSuccessfully() || snapshot.effect() == null) {
+                return;
+            }
+            int remaining = remainingDuration(snapshot.effect(), snapshot.capturedAt(), Instant.now());
+            if (remaining == 0) {
+                return;
+            }
+            player.addPotionEffect(copyWithDuration(snapshot.effect(), remaining));
+        } catch (RuntimeException exception) {
+            disableBlindness(exception);
+        }
+    }
+
+    private PotionEffect copyWithDuration(PotionEffect effect, int duration) {
+        return new PotionEffect(
+                PotionEffectType.BLINDNESS,
+                duration,
+                effect.getAmplifier(),
+                effect.isAmbient(),
+                effect.hasParticles(),
+                effect.hasIcon()
+        );
     }
 
     private void disableBossBar(RuntimeException exception) {
@@ -331,13 +366,13 @@ public final class CheckUiService {
     }
 
     private void disableBlindness(Throwable exception) {
-        blindnessVisualSupported = false;
+        blindnessSupported = false;
         if (blindnessFailureLogged) {
             return;
         }
         blindnessFailureLogged = true;
         logger.warning(
-                "Client-side Blindness is unavailable on this server runtime; CloverCheck will continue without it ("
+                "Blindness enforcement is unavailable on this server runtime; CloverCheck will continue without it ("
                         + exception.getClass().getSimpleName() + ": " + safeMessage(exception) + ")"
         );
     }

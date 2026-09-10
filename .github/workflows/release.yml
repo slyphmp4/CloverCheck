@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(sed -n 's/^version = "\([^"]*\)"/\1/p' build.gradle.kts)"
+          if [ -z "$VERSION" ]; then
+            echo "Unable to resolve plugin version from build.gradle.kts" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check existing release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Java 25
+        if: steps.release.outputs.exists != 'true'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Setup Gradle
+        if: steps.release.outputs.exists != 'true'
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build and test
+        if: steps.release.outputs.exists != 'true'
+        run: ./gradlew clean build --warning-mode all
+
+      - name: Publish release
+        if: steps.release.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          JAR="build/libs/CloverCheck-$VERSION.jar"
+          test -f "$JAR"
+          cat > release-notes.md <<'EOF'
+          First production release of CloverCheck.
+
+          CloverCheck is a manual player cheat-check workflow for Minecraft/Paper 26.2, with live-tested Cardboard 26.2.19 compatibility.
+
+          Highlights:
+          - Isolated temporary check chat between moderator and checked player.
+          - Full check isolation: fixed XYZ position with free camera rotation, blocked inventory/item/world interactions, damage, hunger, vehicle actions and restricted commands.
+          - Persistent Title/Subtitle, ActionBar and timed BossBar during checks.
+          - Blindness enforcement during the active check with safe restoration of a pre-existing effect where available.
+          - Cardboard-targeted BossBar and visual Blindness compatibility paths while retaining normal Paper API behavior on Paper.
+          - SQLite-backed session history, active-session recovery and audit logging.
+          - Console/RCON support for starting checks.
+          - Configurable messages, actions, permissions and timeout/quit behavior.
+
+          Requirements:
+          - Minecraft/Paper 26.2
+          - Cardboard 26.2.19+ when using Cardboard
+          - Java 25
+          EOF
+          gh release create "$TAG" "$JAR#CloverCheck-$VERSION.jar" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "CloverCheck $VERSION" \
+            --notes-file release-notes.md

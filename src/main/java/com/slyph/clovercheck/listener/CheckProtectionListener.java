@@ -1,6 +1,5 @@
 package com.slyph.clovercheck.listener;
 
-import com.slyph.clovercheck.config.ConfigService;
 import com.slyph.clovercheck.config.PluginSettings;
 import com.slyph.clovercheck.service.CheckSessionService;
 import com.slyph.clovercheck.service.MessageService;
@@ -61,37 +60,23 @@ import org.bukkit.event.vehicle.VehicleEnterEvent;
 import org.bukkit.event.vehicle.VehicleExitEvent;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 public final class CheckProtectionListener implements Listener {
     private final CheckSessionService checks;
     private final MessageService messages;
-    private final ConfigService config;
-    private final Logger logger;
-    private final Set<String> debugEvents = new HashSet<>();
     private final Map<UUID, Location> freezeAnchors = new HashMap<>();
 
-    public CheckProtectionListener(
-            CheckSessionService checks,
-            MessageService messages,
-            ConfigService config,
-            Logger logger
-    ) {
+    public CheckProtectionListener(CheckSessionService checks, MessageService messages) {
         this.checks = checks;
         this.messages = messages;
-        this.config = config;
-        this.logger = logger;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
         if (!freeze(player).movement()) return;
-        debug(player, "PlayerMoveEvent");
         if (player.isSprinting()) {
             player.setSprinting(false);
         }
@@ -119,7 +104,6 @@ public final class CheckProtectionListener implements Listener {
     public void onSprint(PlayerToggleSprintEvent event) {
         Player player = event.getPlayer();
         if (!freeze(player).movement()) return;
-        debug(player, "PlayerToggleSprintEvent");
         event.setCancelled(true);
         if (player.isSprinting()) {
             player.setSprinting(false);
@@ -136,7 +120,6 @@ public final class CheckProtectionListener implements Listener {
         Player player = event.getPlayer();
         PluginSettings.FreezeSettings freeze = freeze(player);
         if (!freeze.teleport()) return;
-        debug(player, "PlayerTeleportEvent");
         Location to = event.getTo();
         Location anchor = freezeAnchors.get(player.getUniqueId());
         if (to != null && anchor != null && samePosition(anchor, to)) return;
@@ -153,7 +136,6 @@ public final class CheckProtectionListener implements Listener {
     public void onInteract(PlayerInteractEvent event) {
         PluginSettings.FreezeSettings freeze = freeze(event.getPlayer());
         if ((event.getClickedBlock() != null && freeze.blockInteract()) || (event.hasItem() && freeze.itemUse())) {
-            debug(event.getPlayer(), "PlayerInteractEvent");
             event.setCancelled(true);
         }
     }
@@ -235,26 +217,17 @@ public final class CheckProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onBreak(BlockBreakEvent event) {
-        if (freeze(event.getPlayer()).blockBreak()) {
-            debug(event.getPlayer(), "BlockBreakEvent");
-            event.setCancelled(true);
-        }
+        if (freeze(event.getPlayer()).blockBreak()) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPlace(BlockPlaceEvent event) {
-        if (freeze(event.getPlayer()).blockPlace()) {
-            debug(event.getPlayer(), "BlockPlaceEvent");
-            event.setCancelled(true);
-        }
+        if (freeze(event.getPlayer()).blockPlace()) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryClick(InventoryClickEvent event) {
-        if (event.getWhoClicked() instanceof Player player && freeze(player).inventory()) {
-            debug(player, "InventoryClickEvent");
-            event.setCancelled(true);
-        }
+        if (event.getWhoClicked() instanceof Player player && freeze(player).inventory()) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -284,10 +257,7 @@ public final class CheckProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onDrop(PlayerDropItemEvent event) {
-        if (freeze(event.getPlayer()).itemDrop()) {
-            debug(event.getPlayer(), "PlayerDropItemEvent");
-            event.setCancelled(true);
-        }
+        if (freeze(event.getPlayer()).itemDrop()) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -323,10 +293,7 @@ public final class CheckProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onDamage(EntityDamageEvent event) {
-        if (event.getEntity() instanceof Player player && freeze(player).damage()) {
-            debug(player, "EntityDamageEvent");
-            event.setCancelled(true);
-        }
+        if (event.getEntity() instanceof Player player && freeze(player).damage()) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -389,16 +356,6 @@ public final class CheckProtectionListener implements Listener {
             return DISABLED;
         }
         return checks.freezeSettings();
-    }
-
-    private void debug(Player player, String eventName) {
-        if (!config.settings().debug() || !checks.isChecked(player.getUniqueId())) {
-            return;
-        }
-        String key = player.getUniqueId() + ":" + eventName;
-        if (debugEvents.add(key)) {
-            logger.info("[DEBUG] protection event=" + eventName + " player=" + player.getName());
-        }
     }
 
     private static boolean samePosition(Location first, Location second) {

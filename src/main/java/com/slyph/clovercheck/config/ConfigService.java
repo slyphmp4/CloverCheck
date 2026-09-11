@@ -146,19 +146,27 @@ public final class ConfigService {
             return;
         }
 
-        boolean defaultQuitPolicy = "NOTIFY_ONLY".equalsIgnoreCase(config.getString("quit.policy", ""));
-        boolean defaultLeftActions = config.isList("actions.left") && config.getStringList("actions.left").isEmpty();
-        boolean defaultConfessedActions = config.isList("actions.confessed") && config.getStringList("actions.confessed").isEmpty();
-        if (defaultQuitPolicy && defaultLeftActions && defaultConfessedActions) {
-            config.set("quit.policy", "EXECUTE_COMMANDS");
-            config.set("actions.left", List.of(DEFAULT_LEFT_ACTION));
-            config.set("actions.confessed", List.of(DEFAULT_CONFESSED_ACTION));
+        boolean punishmentDefaultsApplied = migrateV4PunishmentDefaults(config);
+        if (punishmentDefaultsApplied) {
             logger.info("Migrated CloverCheck punishment defaults: leaving a check and confirmed confession now execute configured actions.");
         } else {
             logger.info("Preserved customized CloverCheck quit/action settings while migrating config version 4 to 5.");
         }
-        config.set("version", CURRENT_CONFIG_VERSION);
         config.save(file);
+    }
+
+    static boolean migrateV4PunishmentDefaults(YamlConfiguration config) {
+        boolean defaultQuitPolicy = "NOTIFY_ONLY".equalsIgnoreCase(config.getString("quit.policy", ""));
+        boolean defaultLeftActions = config.isList("actions.left") && config.getStringList("actions.left").isEmpty();
+        boolean defaultConfessedActions = config.isList("actions.confessed") && config.getStringList("actions.confessed").isEmpty();
+        boolean applyDefaults = defaultQuitPolicy && defaultLeftActions && defaultConfessedActions;
+        if (applyDefaults) {
+            config.set("quit.policy", "EXECUTE_COMMANDS");
+            config.set("actions.left", List.of(DEFAULT_LEFT_ACTION));
+            config.set("actions.confessed", List.of(DEFAULT_CONFESSED_ACTION));
+        }
+        config.set("version", CURRENT_CONFIG_VERSION);
+        return applyDefaults;
     }
 
     private static Set<String> readWhitelist(YamlConfiguration config) {

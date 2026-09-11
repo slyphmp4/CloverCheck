@@ -1,6 +1,7 @@
 package com.slyph.clovercheck.command;
 
 import com.slyph.clovercheck.CloverCheck;
+import com.slyph.clovercheck.config.ConfigService;
 import com.slyph.clovercheck.model.CheckResult;
 import com.slyph.clovercheck.service.CheckSessionService;
 import com.slyph.clovercheck.service.MessageService;
@@ -21,11 +22,13 @@ import java.util.Map;
 
 public final class CheckCommand implements CommandExecutor, TabCompleter {
     private final CloverCheck plugin;
+    private final ConfigService config;
     private final MessageService messages;
     private final CheckSessionService checks;
 
-    public CheckCommand(CloverCheck plugin, MessageService messages, CheckSessionService checks) {
+    public CheckCommand(CloverCheck plugin, ConfigService config, MessageService messages, CheckSessionService checks) {
         this.plugin = plugin;
+        this.config = config;
         this.messages = messages;
         this.checks = checks;
     }
@@ -201,13 +204,27 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean startPermission(CommandSender sender) {
-        if (hasStartAccess(sender)) return true;
-        messages.send(sender, "no-permission");
+        if (sender instanceof Player) {
+            return permission(sender, "clovercheck.start");
+        }
+        if (sender instanceof ConsoleCommandSender) {
+            if (!config.settings().console().allowStartChecks()) {
+                messages.send(sender, "player-only");
+                return false;
+            }
+            return permission(sender, "clovercheck.start");
+        }
+        messages.send(sender, "player-only");
         return false;
     }
 
-    private static boolean hasStartAccess(CommandSender sender) {
-        return sender instanceof ConsoleCommandSender || sender.hasPermission("clovercheck.start");
+    private boolean hasStartAccess(CommandSender sender) {
+        if (sender instanceof Player) {
+            return sender.hasPermission("clovercheck.start");
+        }
+        return sender instanceof ConsoleCommandSender
+                && config.settings().console().allowStartChecks()
+                && sender.hasPermission("clovercheck.start");
     }
 
     private static boolean isSelfTarget(CommandSender sender, String playerName) {

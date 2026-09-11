@@ -3,6 +3,7 @@ package com.slyph.clovercheck.config;
 import com.slyph.clovercheck.model.CheckResult;
 import com.slyph.clovercheck.model.QuitPolicy;
 import com.slyph.clovercheck.model.TimeoutPolicy;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -10,8 +11,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PluginSettingsTest {
     @Test
@@ -37,6 +40,36 @@ class PluginSettingsTest {
     @Test
     void consoleStartChecksCanBeDisabled() {
         assertFalse(settings(new PluginSettings.DatabaseSettings("checks.db", 10)).console().allowStartChecks());
+    }
+
+    @Test
+    void migratesUntouchedV4PunishmentDefaults() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("version", 4);
+        config.set("quit.policy", "NOTIFY_ONLY");
+        config.set("actions.left", List.of());
+        config.set("actions.confessed", List.of());
+
+        assertTrue(ConfigService.migrateV4PunishmentDefaults(config));
+        assertEquals(5, config.getInt("version"));
+        assertEquals("EXECUTE_COMMANDS", config.getString("quit.policy"));
+        assertEquals(List.of("tempban %player% 7d Уход с проверки"), config.getStringList("actions.left"));
+        assertEquals(List.of("tempban %player% 3d Читы, признался"), config.getStringList("actions.confessed"));
+    }
+
+    @Test
+    void preservesCustomizedV4PunishmentSettings() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("version", 4);
+        config.set("quit.policy", "MARK_AS_LEFT");
+        config.set("actions.left", List.of("customban %player%"));
+        config.set("actions.confessed", List.of());
+
+        assertFalse(ConfigService.migrateV4PunishmentDefaults(config));
+        assertEquals(5, config.getInt("version"));
+        assertEquals("MARK_AS_LEFT", config.getString("quit.policy"));
+        assertEquals(List.of("customban %player%"), config.getStringList("actions.left"));
+        assertTrue(config.getStringList("actions.confessed").isEmpty());
     }
 
     private static PluginSettings settings(PluginSettings.DatabaseSettings database) {

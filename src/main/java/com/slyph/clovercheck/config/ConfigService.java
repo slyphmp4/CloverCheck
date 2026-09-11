@@ -20,6 +20,10 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 public final class ConfigService {
+    private static final int CURRENT_CONFIG_VERSION = 5;
+    private static final String DEFAULT_LEFT_ACTION = "tempban %player% 7d Уход с проверки";
+    private static final String DEFAULT_CONFESSED_ACTION = "tempban %player% 3d Читы, признался";
+
     public record ReloadResult(boolean success, boolean databaseRestartRequired, String error) {
     }
 
@@ -73,6 +77,7 @@ public final class ConfigService {
     private PluginSettings readSettings() throws IOException, InvalidConfigurationException {
         YamlConfiguration config = new YamlConfiguration();
         config.load(file);
+        migrateConfig(config);
         Set<String> whitelist = readWhitelist(config);
         PluginSettings.FreezeSettings freeze = new PluginSettings.FreezeSettings(
                 requiredBoolean(config, "freeze.movement"),
@@ -126,6 +131,34 @@ public final class ConfigService {
                 requiredBoolean(config, "debug"),
                 requiredString(config, "locale")
         );
+    }
+
+    private void migrateConfig(YamlConfiguration config) throws IOException {
+        if (!config.isInt("version")) {
+            return;
+        }
+        int version = config.getInt("version");
+        if (version >= CURRENT_CONFIG_VERSION) {
+            return;
+        }
+        if (version != 4) {
+            logger.warning("CloverCheck config version " + version + " is older than the supported automatic migration path; values will be validated without modification.");
+            return;
+        }
+
+        boolean defaultQuitPolicy = "NOTIFY_ONLY".equalsIgnoreCase(config.getString("quit.policy", ""));
+        boolean defaultLeftActions = config.isList("actions.left") && config.getStringList("actions.left").isEmpty();
+        boolean defaultConfessedActions = config.isList("actions.confessed") && config.getStringList("actions.confessed").isEmpty();
+        if (defaultQuitPolicy && defaultLeftActions && defaultConfessedActions) {
+            config.set("quit.policy", "EXECUTE_COMMANDS");
+            config.set("actions.left", List.of(DEFAULT_LEFT_ACTION));
+            config.set("actions.confessed", List.of(DEFAULT_CONFESSED_ACTION));
+            logger.info("Migrated CloverCheck punishment defaults: leaving a check and confirmed confession now execute configured actions.");
+        } else {
+            logger.info("Preserved customized CloverCheck quit/action settings while migrating config version 4 to 5.");
+        }
+        config.set("version", CURRENT_CONFIG_VERSION);
+        config.save(file);
     }
 
     private static Set<String> readWhitelist(YamlConfiguration config) {

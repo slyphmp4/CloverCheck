@@ -51,7 +51,11 @@ public final class ActionService {
             }
             String root = command.split("\\s+", 2)[0];
             audit.log(session.id(), AuditEventType.COMMAND_EXECUTION, actorId(actor), actorName(actor), "root=" + root);
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+            boolean dispatched = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+            if (!dispatched) {
+                logger.warning("CloverCheck action command was not handled for session " + session.id() + ": root=" + root);
+                audit.log(session.id(), AuditEventType.INTERNAL_ERROR, actorId(actor), actorName(actor), "action command not handled root=" + root);
+            }
         }
     }
 

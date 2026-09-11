@@ -31,13 +31,24 @@ The current protection, isolated chat, fixed-position freeze, Blindness, Title/S
 - `/check confess` then `/check confess confirm` - checked-player confession flow
 - `/check reload` - reload safe runtime configuration and messages
 
+## Console start checks
+
+Starting a new check from the server console or RCON is disabled by default in production. It can be enabled explicitly in `config.yml`:
+
+```yaml
+console:
+  allow-start-checks: true
+```
+
+When disabled, console/RCON cannot start a check and start targets are not exposed through tab completion. Other console-safe administrative commands are unaffected. Existing configs that do not contain this option are treated as `false`.
+
 ## Persistence and audit
 
 Session history and active-session recovery use SQLite. SQL operations run on a dedicated single-thread executor and values are bound with prepared statements. Audit events are stored separately and mirrored to the plugin logger.
 
 ## Safety defaults
 
-Automatic punishment commands are empty by default. Quit policy defaults to `NOTIFY_ONLY`, timeout policy defaults to `MARK_AS_TIMEOUT`, and moderator teleport is disabled until explicitly enabled.
+Automatic punishment commands are empty by default. Quit policy defaults to `NOTIFY_ONLY`, timeout policy defaults to `MARK_AS_TIMEOUT`, moderator teleport is disabled until explicitly enabled, and starting checks from console/RCON is disabled until explicitly enabled.
 
 ## Build
 

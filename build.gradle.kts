@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.slyph"
-version = "1.0.0"
+version = "1.0.1"
 
 val pluginVersion = version.toString()
 

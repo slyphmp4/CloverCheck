@@ -7,6 +7,7 @@ group = "com.slyph"
 version = "1.1.0"
 
 val pluginVersion = version.toString()
+val paperApi = "io.papermc.paper:paper-api:26.2.build.121-stable"
 
 repositories {
     mavenCentral()
@@ -17,12 +18,13 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:26.2.build.121-stable")
+    compileOnly(paperApi)
 
     implementation("org.xerial:sqlite-jdbc:3.53.2.1") {
         exclude(group = "org.slf4j")
     }
 
+    testImplementation(paperApi)
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

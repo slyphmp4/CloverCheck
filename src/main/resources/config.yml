@@ -1,4 +1,4 @@
-version: 4
+version: 5
 locale: "ru_RU"
 debug: false
 
@@ -42,7 +42,7 @@ freeze:
   commands: true
 
 quit:
-  policy: "NOTIFY_ONLY"
+  policy: "EXECUTE_COMMANDS"
 
 timeout:
   policy: "MARK_AS_TIMEOUT"
@@ -83,8 +83,10 @@ database:
 actions:
   clean: []
   cheats-found: []
-  confessed: []
+  confessed:
+    - "tempban %player% 3d Читы, признался"
   refused: []
-  left: []
+  left:
+    - "tempban %player% 7d Уход с проверки"
   timeout: []
   cancelled: []

@@ -110,6 +110,7 @@ public final class ConfigService {
                 requiredString(config, "check.default-reason"),
                 requiredString(config, "check.contact"),
                 whitelist,
+                new PluginSettings.ConsoleSettings(optionalBoolean(config, "console.allow-start-checks", false)),
                 freeze,
                 enumValue(config, "quit.policy", QuitPolicy.class),
                 enumValue(config, "timeout.policy", TimeoutPolicy.class),

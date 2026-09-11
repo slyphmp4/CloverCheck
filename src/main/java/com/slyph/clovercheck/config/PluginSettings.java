@@ -18,6 +18,7 @@ public record PluginSettings(
         String defaultReason,
         String contact,
         Set<String> commandWhitelist,
+        ConsoleSettings console,
         FreezeSettings freeze,
         QuitPolicy quitPolicy,
         TimeoutPolicy timeoutPolicy,
@@ -41,6 +42,7 @@ public record PluginSettings(
         Objects.requireNonNull(defaultReason, "defaultReason");
         Objects.requireNonNull(contact, "contact");
         Objects.requireNonNull(commandWhitelist, "commandWhitelist");
+        Objects.requireNonNull(console, "console");
         Objects.requireNonNull(freeze, "freeze");
         Objects.requireNonNull(quitPolicy, "quitPolicy");
         Objects.requireNonNull(timeoutPolicy, "timeoutPolicy");
@@ -80,13 +82,16 @@ public record PluginSettings(
     public PluginSettings withDatabase(DatabaseSettings databaseSettings) {
         return new PluginSettings(
                 checkDuration, reminderIntervalSeconds, oneActivePerModerator, defaultReason, contact,
-                commandWhitelist, freeze, quitPolicy, timeoutPolicy, confess, staff, bossBar, title,
+                commandWhitelist, console, freeze, quitPolicy, timeoutPolicy, confess, staff, bossBar, title,
                 actionBar, sounds, teleport, databaseSettings, actions, debug, locale
         );
     }
 
     public List<String> actionCommands(CheckResult result) {
         return actions.getOrDefault(result, List.of());
+    }
+
+    public record ConsoleSettings(boolean allowStartChecks) {
     }
 
     public record FreezeSettings(

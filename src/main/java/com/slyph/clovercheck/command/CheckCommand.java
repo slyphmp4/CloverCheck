@@ -10,6 +10,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.command.RemoteConsoleCommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -207,7 +208,7 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
         if (sender instanceof Player) {
             return permission(sender, "clovercheck.start");
         }
-        if (sender instanceof ConsoleCommandSender) {
+        if (isConsoleSender(sender)) {
             if (!config.settings().console().allowStartChecks()) {
                 messages.send(sender, "player-only");
                 return false;
@@ -222,9 +223,13 @@ public final class CheckCommand implements CommandExecutor, TabCompleter {
         if (sender instanceof Player) {
             return sender.hasPermission("clovercheck.start");
         }
-        return sender instanceof ConsoleCommandSender
+        return isConsoleSender(sender)
                 && config.settings().console().allowStartChecks()
                 && sender.hasPermission("clovercheck.start");
+    }
+
+    private static boolean isConsoleSender(CommandSender sender) {
+        return sender instanceof ConsoleCommandSender || sender instanceof RemoteConsoleCommandSender;
     }
 
     private static boolean isSelfTarget(CommandSender sender, String playerName) {

@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class PluginSettingsTest {
@@ -21,7 +22,8 @@ class PluginSettingsTest {
     @Test
     void rejectsInvalidDuration() {
         assertThrows(IllegalArgumentException.class, () -> new PluginSettings(
-                Duration.ZERO, 60, true, "Manual check", "discord.gg/example", Set.of("check"), freeze(),
+                Duration.ZERO, 60, true, "Manual check", "discord.gg/example", Set.of("check"),
+                new PluginSettings.ConsoleSettings(false), freeze(),
                 QuitPolicy.NOTIFY_ONLY, TimeoutPolicy.MARK_AS_TIMEOUT,
                 new PluginSettings.ConfessSettings(true, 30), new PluginSettings.StaffSettings(true),
                 new PluginSettings.BossBarSettings(true, "YELLOW", "PROGRESS"),
@@ -32,9 +34,15 @@ class PluginSettingsTest {
         ));
     }
 
+    @Test
+    void consoleStartChecksCanBeDisabled() {
+        assertFalse(settings(new PluginSettings.DatabaseSettings("checks.db", 10)).console().allowStartChecks());
+    }
+
     private static PluginSettings settings(PluginSettings.DatabaseSettings database) {
         return new PluginSettings(
-                Duration.ofMinutes(15), 60, true, "Manual check", "discord.gg/example", Set.of("check"), freeze(),
+                Duration.ofMinutes(15), 60, true, "Manual check", "discord.gg/example", Set.of("check"),
+                new PluginSettings.ConsoleSettings(false), freeze(),
                 QuitPolicy.NOTIFY_ONLY, TimeoutPolicy.MARK_AS_TIMEOUT,
                 new PluginSettings.ConfessSettings(true, 30), new PluginSettings.StaffSettings(true),
                 new PluginSettings.BossBarSettings(true, "YELLOW", "PROGRESS"),

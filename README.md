@@ -31,6 +31,30 @@ The current protection, isolated chat, fixed-position freeze, Blindness, Title/S
 - `/check confess` then `/check confess confirm` - checked-player confession flow
 - `/check reload` - reload safe runtime configuration and messages
 
+## Automatic punishment actions
+
+CloverCheck executes configurable console commands for result-specific actions. By default, leaving an active check completes the session as `LEFT` and executes:
+
+```yaml
+actions:
+  left:
+    - "tempban %player% 7d Уход с проверки"
+```
+
+A confirmed confession completes the session as `CONFESSED` and executes:
+
+```yaml
+actions:
+  confessed:
+    - "tempban %player% 3d Читы, признался"
+```
+
+The default commands assume that the server provides a `tempban` command. If the installed punishment plugin uses another syntax, replace these lines with the required commands. Available safe placeholders are `%player%`, `%player_uuid%`, `%moderator%`, and `%session_id%`.
+
+Leaving a check uses `quit.policy: EXECUTE_COMMANDS`. Config version 4 is automatically migrated to version 5 only when the previous quit/action values still match the untouched CloverCheck defaults; customized punishment settings are preserved.
+
+Confession remains a two-step flow to prevent accidental punishment: `/check confess` requests confirmation and `/check confess confirm` applies the `CONFESSED` result and its configured actions.
+
 ## Console start checks
 
 Starting a new check from the server console or RCON is disabled by default in production. It can be enabled explicitly in `config.yml`:
@@ -48,7 +72,7 @@ Session history and active-session recovery use SQLite. SQL operations run on a 
 
 ## Safety defaults
 
-Automatic punishment commands are empty by default. Quit policy defaults to `NOTIFY_ONLY`, timeout policy defaults to `MARK_AS_TIMEOUT`, moderator teleport is disabled until explicitly enabled, and starting checks from console/RCON is disabled until explicitly enabled.
+Leaving an active check executes the configured `LEFT` actions, confirmed confession executes the configured `CONFESSED` actions, timeout policy defaults to `MARK_AS_TIMEOUT`, moderator teleport is disabled until explicitly enabled, and starting checks from console/RCON is disabled until explicitly enabled. Action command failures are logged and audited instead of being silently ignored.
 
 ## Build
 

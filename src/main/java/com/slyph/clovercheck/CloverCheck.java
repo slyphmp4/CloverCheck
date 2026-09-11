@@ -138,7 +138,7 @@ public final class CloverCheck extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
-        CheckCommand checkCommand = new CheckCommand(this, messageService, checkSessions);
+        CheckCommand checkCommand = new CheckCommand(this, configService, messageService, checkSessions);
         command.setExecutor(checkCommand);
         command.setTabCompleter(checkCommand);
         checkSessions.startTicker();

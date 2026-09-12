@@ -30,17 +30,21 @@ public final class MessageService {
 
     public boolean reload() {
         try {
-            YamlConfiguration loaded = new YamlConfiguration();
-            loaded.load(file);
-            if (!loaded.isConfigurationSection("messages") || !loaded.isConfigurationSection("ui")) {
-                throw new InvalidConfigurationException("messages.yml must contain messages and ui sections");
-            }
-            messages = loaded;
+            prepareReload().run();
             return true;
         } catch (IOException | InvalidConfigurationException exception) {
             logger.severe("Failed to load messages.yml: " + exception.getMessage());
             return false;
         }
+    }
+
+    public Runnable prepareReload() throws IOException, InvalidConfigurationException {
+        YamlConfiguration loaded = new YamlConfiguration();
+        loaded.load(file);
+        if (!loaded.isConfigurationSection("messages") || !loaded.isConfigurationSection("ui")) {
+            throw new InvalidConfigurationException("messages.yml must contain messages and ui sections");
+        }
+        return () -> messages = loaded;
     }
 
     public void send(CommandSender sender, String key) {

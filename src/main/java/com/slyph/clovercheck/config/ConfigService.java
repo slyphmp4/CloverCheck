@@ -27,6 +27,8 @@ public final class ConfigService {
     public record ReloadResult(boolean success, boolean databaseRestartRequired, String error) {
     }
 
+    public record PreparedReload(Runnable apply, boolean databaseRestartRequired) { }
+
     private final File file;
     private final Logger logger;
     private volatile PluginSettings settings;
@@ -47,23 +49,27 @@ public final class ConfigService {
     }
 
     public ReloadResult reload() {
-        PluginSettings current = settings;
         try {
-            PluginSettings loaded = readSettings();
-            boolean databaseRestartRequired = current != null
-                    && !current.database().file().equals(loaded.database().file());
-            if (databaseRestartRequired) {
-                loaded = loaded.withDatabase(new PluginSettings.DatabaseSettings(
-                        current.database().file(),
-                        loaded.database().historyLimit()
-                ));
-            }
-            settings = loaded;
-            return new ReloadResult(true, databaseRestartRequired, "");
+            PreparedReload prepared = prepareReload();
+            prepared.apply().run();
+            return new ReloadResult(true, prepared.databaseRestartRequired(), "");
         } catch (IOException | InvalidConfigurationException | IllegalArgumentException exception) {
             logger.severe("Failed to reload CloverCheck config: " + exception.getMessage());
             return new ReloadResult(false, false, exception.getMessage());
         }
+    }
+
+    public PreparedReload prepareReload() throws IOException, InvalidConfigurationException {
+        PluginSettings current = settings;
+        PluginSettings loaded = readSettings();
+        boolean databaseRestartRequired = current != null
+                && !current.database().file().equals(loaded.database().file());
+        if (databaseRestartRequired) {
+            loaded = loaded.withDatabase(new PluginSettings.DatabaseSettings(
+                    current.database().file(), loaded.database().historyLimit()));
+        }
+        PluginSettings prepared = loaded;
+        return new PreparedReload(() -> settings = prepared, databaseRestartRequired);
     }
 
     public PluginSettings settings() {
@@ -77,7 +83,7 @@ public final class ConfigService {
     private PluginSettings readSettings() throws IOException, InvalidConfigurationException {
         YamlConfiguration config = new YamlConfiguration();
         config.load(file);
-        migrateConfig(config);
+        boolean migrated = migrateConfig(config);
         Set<String> whitelist = readWhitelist(config);
         PluginSettings.FreezeSettings freeze = new PluginSettings.FreezeSettings(
                 requiredBoolean(config, "freeze.movement"),
@@ -108,7 +114,7 @@ public final class ConfigService {
             }
             actions.put(result, List.copyOf(config.getStringList(key)));
         }
-        return new PluginSettings(
+        PluginSettings loaded = new PluginSettings(
                 Duration.ofSeconds(requiredInt(config, "check.duration-seconds")),
                 requiredInt(config, "check.reminder-interval-seconds"),
                 requiredBoolean(config, "check.one-active-per-moderator"),
@@ -131,19 +137,21 @@ public final class ConfigService {
                 requiredBoolean(config, "debug"),
                 requiredString(config, "locale")
         );
+        if (migrated) config.save(file);
+        return loaded;
     }
 
-    private void migrateConfig(YamlConfiguration config) throws IOException {
+    private boolean migrateConfig(YamlConfiguration config) {
         if (!config.isInt("version")) {
-            return;
+            return false;
         }
         int version = config.getInt("version");
         if (version >= CURRENT_CONFIG_VERSION) {
-            return;
+            return false;
         }
         if (version != 4) {
             logger.warning("CloverCheck config version " + version + " is older than the supported automatic migration path; values will be validated without modification.");
-            return;
+            return false;
         }
 
         boolean punishmentDefaultsApplied = migrateV4PunishmentDefaults(config);
@@ -152,7 +160,7 @@ public final class ConfigService {
         } else {
             logger.info("Preserved customized CloverCheck quit/action settings while migrating config version 4 to 5.");
         }
-        config.save(file);
+        return true;
     }
 
     static boolean migrateV4PunishmentDefaults(YamlConfiguration config) {

@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
@@ -106,6 +107,7 @@ public final class SQLiteCheckRepository implements CheckRepository {
     private final Logger logger;
     private final ExecutorService executor;
     private Connection connection;
+    private CompletableFuture<Void> closeFuture;
 
     public SQLiteCheckRepository(Path databasePath, Logger logger) {
         this.databasePath = databasePath.toAbsolutePath().normalize();
@@ -180,18 +182,34 @@ public final class SQLiteCheckRepository implements CheckRepository {
 
     @Override
     public void shutdown(Collection<CheckSessionSnapshot> activeSessions, Duration timeout) {
-        List<CheckSessionSnapshot> snapshots = List.copyOf(activeSessions);
-        CompletableFuture<Void> closeFuture = runAsync(() -> {
-            if (connection != null) {
-                for (CheckSessionSnapshot snapshot : snapshots) {
-                    upsertNow(snapshot);
-                }
-                connection.close();
-                connection = null;
+        CompletableFuture<Void> closing;
+        synchronized (this) {
+            if (closeFuture == null) {
+                List<CheckSessionSnapshot> snapshots = List.copyOf(activeSessions);
+                closeFuture = runAsync(() -> {
+                    try (Connection closingConnection = connection) {
+                        if (closingConnection == null) return;
+                        SQLException failure = null;
+                        for (CheckSessionSnapshot snapshot : snapshots) {
+                            try {
+                                upsertNow(snapshot);
+                            } catch (SQLException exception) {
+                                if (failure == null) failure = exception;
+                                else failure.addSuppressed(exception);
+                            }
+                        }
+                        if (failure != null) throw failure;
+                    } finally {
+                        connection = null;
+                    }
+                });
+                // Do not discard the queued close task if the caller's wait times out.
+                executor.shutdown();
             }
-        });
+            closing = closeFuture;
+        }
         try {
-            closeFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            closing.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException exception) {
             logger.severe("Timed out while closing CloverCheck SQLite storage.");
         } catch (InterruptedException exception) {
@@ -199,8 +217,6 @@ public final class SQLiteCheckRepository implements CheckRepository {
             logger.warning("Interrupted while closing CloverCheck SQLite storage.");
         } catch (java.util.concurrent.ExecutionException exception) {
             logger.log(Level.SEVERE, "Failed to close CloverCheck SQLite storage.", exception.getCause());
-        } finally {
-            executor.shutdownNow();
         }
     }
 
@@ -220,6 +236,7 @@ public final class SQLiteCheckRepository implements CheckRepository {
             statement.execute(CREATE_AUDIT);
             statement.execute("CREATE INDEX IF NOT EXISTS idx_checks_player_uuid ON checks(player_uuid, started_at DESC)");
             statement.execute("CREATE INDEX IF NOT EXISTS idx_checks_player_name ON checks(player_name, started_at DESC)");
+            statement.execute("CREATE INDEX IF NOT EXISTS idx_checks_player_name_lower ON checks(lower(player_name), started_at DESC)");
             statement.execute("CREATE INDEX IF NOT EXISTS idx_audit_session ON audit_events(session_id, event_time)");
         }
     }
@@ -351,23 +368,24 @@ public final class SQLiteCheckRepository implements CheckRepository {
     }
 
     private CompletableFuture<Void> runAsync(SqlTask task) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                task.run();
-            } catch (Exception exception) {
-                throw new CompletionException(exception);
-            }
-        }, executor);
+        return supplyAsync(() -> {
+            task.run();
+            return null;
+        });
     }
 
-    private <T> CompletableFuture<T> supplyAsync(SqlSupplier<T> supplier) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return supplier.get();
-            } catch (Exception exception) {
-                throw new CompletionException(exception);
-            }
-        }, executor);
+    private synchronized <T> CompletableFuture<T> supplyAsync(SqlSupplier<T> supplier) {
+        try {
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    return supplier.get();
+                } catch (Exception exception) {
+                    throw new CompletionException(exception);
+                }
+            }, executor);
+        } catch (RejectedExecutionException exception) {
+            return CompletableFuture.failedFuture(exception);
+        }
     }
 
     @FunctionalInterface

@@ -16,7 +16,9 @@ import org.bukkit.potion.PotionEffectType;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -31,6 +33,8 @@ public final class CheckUiService {
     private final boolean cardboardRuntime;
     private final Map<UUID, BossBar> bossBars = new HashMap<>();
     private final Map<UUID, BlindnessSnapshot> blindnessBeforeCheck = new HashMap<>();
+    private final Set<UUID> titlePlayers = new HashSet<>();
+    private final Set<UUID> actionBarPlayers = new HashSet<>();
     private boolean bossBarSupported = true;
     private boolean bossBarFailureLogged;
     private boolean titleSupported = true;
@@ -71,13 +75,15 @@ public final class CheckUiService {
     }
 
     public void complete(Player player, Map<String, String> placeholders) {
+        clear(player);
+        playConfiguredSound(player, config.settings().sounds().completeKey());
+    }
+
+    public void clear(Player player) {
         hide(player);
         restoreBlindness(player);
         clearTitle(player);
-        playConfiguredSound(player, config.settings().sounds().completeKey());
-        if (config.settings().actionBar().enabled()) {
-            player.sendActionBar(Component.empty());
-        }
+        clearActionBar(player);
     }
 
     public void hide(Player player) {
@@ -94,15 +100,12 @@ public final class CheckUiService {
 
     public void hideAll(Iterable<? extends Player> players) {
         for (Player player : players) {
-            hide(player);
-            restoreBlindness(player);
-            clearTitle(player);
-            if (config.settings().actionBar().enabled()) {
-                player.sendActionBar(Component.empty());
-            }
+            clear(player);
         }
         bossBars.clear();
         blindnessBeforeCheck.clear();
+        titlePlayers.clear();
+        actionBarPlayers.clear();
     }
 
     private void showOrUpdateBossBar(Player player, Map<String, String> placeholders, float progress) {
@@ -176,6 +179,7 @@ public final class CheckUiService {
                     messages.component("ui.title.subtitle", placeholders),
                     times
             ));
+            titlePlayers.add(player.getUniqueId());
         } catch (RuntimeException exception) {
             disableTitle(exception);
         }
@@ -184,6 +188,7 @@ public final class CheckUiService {
     private void showPersistentTitle(Player player, Map<String, String> placeholders) {
         PluginSettings.TitleSettings settings = config.settings().title();
         if (!settings.enabled() || !titleSupported) {
+            clearTitle(player);
             return;
         }
         try {
@@ -197,13 +202,14 @@ public final class CheckUiService {
                     messages.component("ui.title.subtitle", placeholders),
                     times
             ));
+            titlePlayers.add(player.getUniqueId());
         } catch (RuntimeException exception) {
             disableTitle(exception);
         }
     }
 
     private void clearTitle(Player player) {
-        if (!titleSupported) {
+        if (!titlePlayers.remove(player.getUniqueId())) {
             return;
         }
         try {
@@ -380,6 +386,15 @@ public final class CheckUiService {
     private void updateActionBar(Player player, Map<String, String> placeholders) {
         if (config.settings().actionBar().enabled()) {
             player.sendActionBar(messages.component("ui.actionbar.text", placeholders));
+            actionBarPlayers.add(player.getUniqueId());
+        } else {
+            clearActionBar(player);
+        }
+    }
+
+    private void clearActionBar(Player player) {
+        if (actionBarPlayers.remove(player.getUniqueId())) {
+            player.sendActionBar(Component.empty());
         }
     }
 

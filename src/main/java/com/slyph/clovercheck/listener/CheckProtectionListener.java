@@ -3,6 +3,7 @@ package com.slyph.clovercheck.listener;
 import com.slyph.clovercheck.config.PluginSettings;
 import com.slyph.clovercheck.service.CheckSessionService;
 import com.slyph.clovercheck.service.MessageService;
+import com.slyph.clovercheck.session.CheckSession;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -61,12 +62,15 @@ import org.bukkit.event.vehicle.VehicleExitEvent;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class CheckProtectionListener implements Listener {
     private final CheckSessionService checks;
     private final MessageService messages;
-    private final Map<UUID, Location> freezeAnchors = new HashMap<>();
+    private record FreezeAnchor(String sessionId, Location location) { }
+
+    private final Map<UUID, FreezeAnchor> freezeAnchors = new HashMap<>();
 
     public CheckProtectionListener(CheckSessionService checks, MessageService messages) {
         this.checks = checks;
@@ -82,7 +86,9 @@ public final class CheckProtectionListener implements Listener {
         }
         Location to = event.getTo();
         if (to == null) return;
-        Location anchor = freezeAnchors.computeIfAbsent(player.getUniqueId(), ignored -> event.getFrom().clone());
+        FreezeAnchor stored = freezeAnchors.computeIfAbsent(player.getUniqueId(), ignored ->
+                new FreezeAnchor(checks.activeSession(player.getUniqueId()).orElseThrow().id(), event.getFrom().clone()));
+        Location anchor = stored.location();
         if (samePosition(anchor, to)) return;
         Location allowed = anchor.clone();
         allowed.setYaw(to.getYaw());
@@ -121,10 +127,19 @@ public final class CheckProtectionListener implements Listener {
         PluginSettings.FreezeSettings freeze = freeze(player);
         if (!freeze.teleport()) return;
         Location to = event.getTo();
-        Location anchor = freezeAnchors.get(player.getUniqueId());
+        FreezeAnchor stored = freezeAnchors.get(player.getUniqueId());
+        Location anchor = stored == null ? null : stored.location();
         if (to != null && anchor != null && samePosition(anchor, to)) return;
         if (to != null && samePosition(event.getFrom(), to)) return;
         event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTeleportCompleted(PlayerTeleportEvent event) {
+        Player player = event.getPlayer();
+        if (event.getTo() == null || !freeze(player).movement()) return;
+        checks.activeSession(player.getUniqueId()).ifPresent(session ->
+                freezeAnchors.put(player.getUniqueId(), new FreezeAnchor(session.id(), event.getTo().clone())));
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -351,11 +366,17 @@ public final class CheckProtectionListener implements Listener {
     }
 
     private PluginSettings.FreezeSettings freeze(Player player) {
-        if (!checks.isChecked(player.getUniqueId())) {
+        Optional<CheckSession> session = checks.activeSession(player.getUniqueId());
+        if (session.isEmpty()) {
             freezeAnchors.remove(player.getUniqueId());
             return DISABLED;
         }
-        return checks.freezeSettings();
+        PluginSettings.FreezeSettings settings = checks.freezeSettings();
+        FreezeAnchor anchor = freezeAnchors.get(player.getUniqueId());
+        if (!settings.movement() || (anchor != null && !anchor.sessionId().equals(session.get().id()))) {
+            freezeAnchors.remove(player.getUniqueId());
+        }
+        return settings;
     }
 
     private static boolean samePosition(Location first, Location second) {

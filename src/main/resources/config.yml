@@ -1,4 +1,5 @@
 version: 5
+# Reserved locale metadata. Edit messages.yml and chat.yml to change the language.
 locale: "ru_RU"
 debug: false
 

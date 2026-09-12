@@ -14,8 +14,10 @@ import com.slyph.clovercheck.session.CheckSessionSnapshot;
 import com.slyph.clovercheck.storage.CheckRepository;
 import com.slyph.clovercheck.storage.sqlite.SQLiteCheckRepository;
 import com.slyph.clovercheck.ui.CheckUiService;
+import com.slyph.clovercheck.util.PluginTasks;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -24,6 +26,8 @@ import org.bukkit.plugin.RegisteredListener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.time.Duration;
+import java.io.IOException;
+import java.io.File;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
@@ -41,8 +45,8 @@ public final class CloverCheck extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        saveResource("messages.yml", false);
-        saveResource("chat.yml", false);
+        saveMissingResource("messages.yml");
+        saveMissingResource("chat.yml");
 
         configService = new ConfigService(this);
         messageService = new MessageService(this);
@@ -60,34 +64,44 @@ public final class CloverCheck extends JavaPlugin {
             if (error != null) {
                 Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
                 getLogger().log(Level.SEVERE, "Failed to initialize CloverCheck SQLite storage.", cause);
-                if (isEnabled()) {
-                    Bukkit.getScheduler().runTask(this, () -> getServer().getPluginManager().disablePlugin(this));
-                }
+                PluginTasks.runSync(this, () -> getServer().getPluginManager().disablePlugin(this));
                 return;
             }
-            if (isEnabled()) {
-                Bukkit.getScheduler().runTask(this, () -> bootstrap(restored));
-            }
+            PluginTasks.runSync(this, () -> bootstrap(restored));
         });
     }
 
     @Override
     public void onDisable() {
-        List<CheckSessionSnapshot> active = checkSessions == null ? List.of() : checkSessions.shutdown();
-        if (repository != null) {
-            repository.shutdown(active, Duration.ofSeconds(5));
+        List<CheckSessionSnapshot> active = List.of();
+        try {
+            if (checkSessions != null) active = checkSessions.shutdown();
+        } finally {
+            if (repository != null) repository.shutdown(active, Duration.ofSeconds(5));
         }
     }
 
     public ReloadOutcome reloadPlugin() {
-        boolean messagesReloaded = messageService.reload();
-        boolean chatReloaded = checkChatService == null || checkChatService.reload();
-        ConfigService.ReloadResult configReloaded = configService.reload();
-        boolean success = messagesReloaded && chatReloaded && configReloaded.success();
-        if (success && checkSessions != null) {
-            checkSessions.onSettingsReload();
+        Runnable applyMessages;
+        Runnable applyChat;
+        ConfigService.PreparedReload preparedConfig;
+        try {
+            applyMessages = messageService.prepareReload();
+            applyChat = checkChatService == null ? () -> { } : checkChatService.prepareReload();
+            preparedConfig = configService.prepareReload();
+        } catch (IOException | InvalidConfigurationException | IllegalArgumentException exception) {
+            getLogger().severe("CloverCheck reload rejected; previous runtime settings retained: " + exception.getMessage());
+            return new ReloadOutcome(false, false);
         }
-        return new ReloadOutcome(success, configReloaded.databaseRestartRequired());
+        applyMessages.run();
+        applyChat.run();
+        preparedConfig.apply().run();
+        if (checkSessions != null) checkSessions.onSettingsReload();
+        return new ReloadOutcome(true, preparedConfig.databaseRestartRequired());
+    }
+
+    private void saveMissingResource(String name) {
+        if (!new File(getDataFolder(), name).exists()) saveResource(name, false);
     }
 
     private void bootstrap(List<CheckSessionSnapshot> restored) {

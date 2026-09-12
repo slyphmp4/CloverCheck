@@ -81,3 +81,14 @@ Leaving an active check executes the configured `LEFT` actions, confirmed confes
 ```
 
 The production JAR is produced by the Shadow task and contains the SQLite JDBC driver. Paper/Adventure server APIs are not bundled.
+
+## Maintenance release 1.1.1
+
+- Configuration reload validates all three YAML files before applying runtime changes. Invalid version-4 configs are not rewritten by migration.
+- Disabled confession cannot be confirmed using an earlier confirmation request.
+- Action command exceptions are logged and audited without skipping subsequent configured actions.
+- Freeze anchors follow the current session and allowed teleports. Restored `STARTING` sessions activate when their player joins.
+- Player quit clears check UI/effect state; reload and shutdown clear Titles/ActionBars only for players whose UI was shown by CloverCheck.
+- The SQLite driver is updated to 3.53.4.0. History uses an indexed case-insensitive lookup, and connection closure proceeds even when final writes fail or the shutdown wait expires.
+
+The detailed audit and verification limits are recorded in [MODERNIZATION_AUDIT.md](MODERNIZATION_AUDIT.md). The maintenance changes require a live smoke test on the deployment's Paper/Cardboard runtime; the earlier Cardboard smoke-test statement above applies to the original implementation.

@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.logging.Logger;
+import java.util.logging.Level;
 
 public final class ActionService {
     private static final Pattern UNRESOLVED = Pattern.compile("%[a-zA-Z0-9_]+%");
@@ -51,10 +52,15 @@ public final class ActionService {
             }
             String root = command.split("\\s+", 2)[0];
             audit.log(session.id(), AuditEventType.COMMAND_EXECUTION, actorId(actor), actorName(actor), "root=" + root);
-            boolean dispatched = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
-            if (!dispatched) {
-                logger.warning("CloverCheck action command was not handled for session " + session.id() + ": root=" + root);
-                audit.log(session.id(), AuditEventType.INTERNAL_ERROR, actorId(actor), actorName(actor), "action command not handled root=" + root);
+            try {
+                boolean dispatched = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+                if (!dispatched) {
+                    logger.warning("CloverCheck action command was not handled for session " + session.id() + ": root=" + root);
+                    audit.log(session.id(), AuditEventType.INTERNAL_ERROR, actorId(actor), actorName(actor), "action command not handled root=" + root);
+                }
+            } catch (RuntimeException exception) {
+                logger.log(Level.WARNING, "CloverCheck action command failed for session " + session.id() + ": root=" + root, exception);
+                audit.log(session.id(), AuditEventType.INTERNAL_ERROR, actorId(actor), actorName(actor), "action command failed root=" + root);
             }
         }
     }

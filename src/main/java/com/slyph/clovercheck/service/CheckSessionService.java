@@ -15,6 +15,7 @@ import com.slyph.clovercheck.storage.CheckRepository;
 import com.slyph.clovercheck.ui.CheckUiService;
 import com.slyph.clovercheck.util.CommandNormalizer;
 import com.slyph.clovercheck.util.DurationFormatter;
+import com.slyph.clovercheck.util.PluginTasks;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -214,6 +215,11 @@ public final class CheckSessionService {
     }
 
     public void confirmConfess(Player player) {
+        if (!config.settings().confess().enabled()) {
+            confessConfirmations.remove(player.getUniqueId());
+            messages.send(player, "confess-disabled");
+            return;
+        }
         Optional<CheckSession> optional = registry.byPlayer(player.getUniqueId());
         if (optional.isEmpty()) {
             messages.send(player, "not-under-check");
@@ -242,7 +248,7 @@ public final class CheckSessionService {
         }
         confessConfirmations.remove(player.getUniqueId());
         persist(session);
-        ui.hide(player);
+        ui.clear(player);
         Map<String, String> placeholders = placeholders(session.snapshot(), now);
         audit.log(session.id(), AuditEventType.PLAYER_QUIT, player.getUniqueId(), player.getName(), "quit policy=" + config.settings().quitPolicy().name());
         notifyModerator(session, "quit-moderator", placeholders);
@@ -262,9 +268,12 @@ public final class CheckSessionService {
         }
         CheckSession session = optional.get();
         Instant now = Instant.now();
-        boolean changed = session.state() == CheckState.DISCONNECTED
-                ? session.reconnect(player.getName(), now)
-                : session.updatePlayerName(player.getName(), now);
+        boolean changed = session.updatePlayerName(player.getName(), now);
+        if (session.state() == CheckState.STARTING) {
+            changed |= session.activate(now);
+        } else if (session.state() == CheckState.DISCONNECTED) {
+            changed |= session.reconnect(player.getName(), now);
+        }
         if (changed) {
             persist(session);
         }
@@ -291,6 +300,10 @@ public final class CheckSessionService {
 
     public boolean isChecked(UUID playerId) {
         return registry.byPlayer(playerId).isPresent();
+    }
+
+    public Optional<CheckSession> activeSession(UUID playerId) {
+        return registry.byPlayer(playerId);
     }
 
     public boolean isCommandAllowed(String rawCommand) {
@@ -403,6 +416,9 @@ public final class CheckSessionService {
     }
 
     public void onSettingsReload() {
+        if (!config.settings().confess().enabled()) {
+            confessConfirmations.clear();
+        }
         for (CheckSession session : registry.activeSessions()) {
             Player player = Bukkit.getPlayer(session.playerId());
             if (player != null && player.isOnline()) {
@@ -620,10 +636,7 @@ public final class CheckSessionService {
     }
 
     private void runSync(Runnable runnable) {
-        if (!plugin.isEnabled()) {
-            return;
-        }
-        Bukkit.getScheduler().runTask(plugin, runnable);
+        PluginTasks.runSync(plugin, runnable);
     }
 
     private static Throwable unwrap(Throwable error) {

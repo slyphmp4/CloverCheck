@@ -3,6 +3,7 @@ package com.slyph.clovercheck.chat;
 import com.slyph.clovercheck.service.CheckSessionService;
 import com.slyph.clovercheck.service.MessageService;
 import com.slyph.clovercheck.session.CheckSession;
+import com.slyph.clovercheck.util.PluginTasks;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
@@ -38,24 +39,28 @@ public final class CheckChatService {
 
     public boolean reload() {
         try {
-            YamlConfiguration config = new YamlConfiguration();
-            config.load(file);
-            Settings loaded = new Settings(
-                    requiredBoolean(config, "enabled"),
-                    requiredInt(config, "max-message-length", 1, 1024),
-                    requiredString(config, "formats.checked"),
-                    requiredString(config, "formats.moderator"),
-                    requiredLines(config, "messages.peer-offline"),
-                    requiredLines(config, "messages.ambiguous"),
-                    requiredLines(config, "messages.session-changed"),
-                    requiredLines(config, "messages.message-too-long")
-            );
-            settings = loaded;
+            prepareReload().run();
             return true;
         } catch (IOException | InvalidConfigurationException | IllegalArgumentException exception) {
             logger.severe("Failed to load chat.yml: " + exception.getMessage());
             return false;
         }
+    }
+
+    public Runnable prepareReload() throws IOException, InvalidConfigurationException {
+        YamlConfiguration config = new YamlConfiguration();
+        config.load(file);
+        Settings loaded = new Settings(
+                requiredBoolean(config, "enabled"),
+                requiredInt(config, "max-message-length", 1, 1024),
+                requiredString(config, "formats.checked"),
+                requiredString(config, "formats.moderator"),
+                requiredLines(config, "messages.peer-offline"),
+                requiredLines(config, "messages.ambiguous"),
+                requiredLines(config, "messages.session-changed"),
+                requiredLines(config, "messages.message-too-long")
+        );
+        return () -> settings = loaded;
     }
 
     public boolean intercept(UUID senderId, Component rawMessage) {
@@ -71,7 +76,7 @@ public final class CheckChatService {
 
         String message = sanitize(PLAIN.serialize(rawMessage));
         String expectedSessionId = route.status() == CheckChatRouter.Status.ACTIVE ? route.session().id() : null;
-        Bukkit.getScheduler().runTask(plugin, () -> deliver(senderId, expectedSessionId, message));
+        PluginTasks.runSync(plugin, () -> deliver(senderId, expectedSessionId, message));
         return true;
     }
 

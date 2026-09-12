@@ -4,10 +4,11 @@ plugins {
 }
 
 group = "com.slyph"
-version = "1.1.0"
+version = "1.1.1"
 
 val pluginVersion = version.toString()
 val paperApi = "io.papermc.paper:paper-api:26.2.build.121-stable"
+val mockitoAgent = configurations.create("mockitoAgent")
 
 repositories {
     mavenCentral()
@@ -20,13 +21,15 @@ repositories {
 dependencies {
     compileOnly(paperApi)
 
-    implementation("org.xerial:sqlite-jdbc:3.53.2.1") {
+    implementation("org.xerial:sqlite-jdbc:3.53.4.0") {
         exclude(group = "org.slf4j")
     }
 
     testImplementation(paperApi)
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.mockito:mockito-core:5.23.0")
+    mockitoAgent("org.mockito:mockito-core:5.23.0") { isTransitive = false }
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -65,4 +68,7 @@ tasks.build {
 tasks.test {
     useJUnitPlatform()
     jvmArgs("--enable-native-access=ALL-UNNAMED")
+    jvmArgumentProviders.add(CommandLineArgumentProvider {
+        listOf("-javaagent:${mockitoAgent.singleFile.absolutePath}")
+    })
 }
